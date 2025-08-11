@@ -111,8 +111,8 @@ footer#count{margin-top:12px;color:var(--muted);text-align:left}
 
 <script>
 /* ======= 1) UPDATE THESE WITH YOUR PUBLISHED CSV LINKS ======= */
-const DIRECTORY_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFCkif4UxnvMNS5cwza23gYx0LioKINM7GvvnpIIBdeUHzR-2ktwFXKcluyzsYhUoDCctm67Y1hSRF/pub?gid=0&single=true&output=csv";     // Directory tab CSV
-const REVIEWS_CSV   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFCkif4UxnvMNS5cwza23gYx0LioKINM7GvvnpIIBdeUHzR-2ktwFXKcluyzsYhUoDCctm67Y1hSRF/pub?gid=979754207&single=true&output=csv"; // Reviews tab CSV
+const DIRECTORY_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFCkif4UxnvMNS5cwza23gYx0LioKINM7GvvnpIIBdeUHzR-2ktwFXKcluyzsYhUoDCctm67Y1hSRF/pub?gid=0&single=true&output=csv";
+const REVIEWS_CSV   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFCkif4UxnvMNS5cwza23gYx0LioKINM7GvvnpIIBdeUHzR-2ktwFXKcluyzsYhUoDCctm67Y1hSRF/pub?gid=979754207&single=true&output=csv";
 /* ============================================================= */
 
 const state = {
@@ -194,10 +194,9 @@ function renderCards() {
   state.filtered.forEach(r => {
     const reviewsCount = Number(r.Reviews||0);
     const contact = r["Contact URL"];
-    const contactHtml = contact
-      ? (isUrl(contact)
-          ? `<div style="margin-top:8px"><a href="${contact}" target="_blank" rel="noopener">Contact / Website ↗</a></div>`
-          : `<div class="muted" style="margin-top:8px">${contact}</div>`)
+    // On cards: show only if it's a real link
+    const contactHtml = (contact && isUrl(contact))
+      ? `<div style="margin-top:8px"><a href="${contact}" target="_blank" rel="noopener">Contact / Website ↗</a></div>`
       : "";
 
     const card = `
@@ -234,10 +233,11 @@ function openDetails(resourceIdEnc){
 
   if (r){
     const contact = r["Contact URL"];
+    // In modal: link if URL, else prepend "Contact: "
     const contactHtml = contact
       ? (isUrl(contact)
           ? `<a href="${contact}" target="_blank" rel="noopener">Contact / Website ↗</a>`
-          : `<span class="muted">${contact}</span>`)
+          : `<span class="muted">Contact: ${contact}</span>`)
       : "";
 
     container.insertAdjacentHTML("beforeend", `
@@ -292,7 +292,7 @@ async function main() {
     const dirRows = csvToObjects(dirCSV);
     const revRows = csvToObjects(revCSV);
 
-    // Normalize directory keys (accept both “Name” and “name_title”, etc.)
+    // Normalize directory keys
     state.directory = dirRows.map(r => ({
       resource_id: r.resource_id || r.Resource_ID || r.id || "",
       Name: r.Name || r.name_title || r.Title || "",
