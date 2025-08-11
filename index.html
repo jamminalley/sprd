@@ -9,94 +9,65 @@
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
-body {
-  font-family: Arial, sans-serif;
-  background-color: #fdfdfb;
-  color: #222;
-  margin: 0;
-  padding: 0;
+:root{
+  --green:#006600;
+  --red:#d40000;
+  --gold:#ffcc00;
+  --ink:#222;
+  --bg:#fdfdfb;
+  --muted:#555;
+  --card-border:#ddd;
+  --pill-bg:#eef5ee;
 }
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Arial,Helvetica,sans-serif}
 
-header {
-  background-color: #006600; /* green */
-  color: white;
-  padding: 1em;
-  text-align: center;
-}
+/* Header */
+header{background:var(--green);color:#fff;padding:16px 20px;text-align:center}
+h1{margin:0}
 
-h1 {
-  margin: 0;
-}
+/* Container */
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
 
-.filter-bar {
-  background-color: #d40000; /* red */
-  color: white; /* text inside filter bar is white */
-  padding: 0.5em;
-  display: flex;
-  gap: 0.5em;
-  flex-wrap: wrap;
+/* Controls (search + filters) */
+.controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:10px}
+.controls input,.controls select{
+  padding:8px 10px;border:2px solid var(--gold);border-radius:10px;background:#fff;color:var(--ink);
 }
+.controls input::placeholder{color:#777}
 
-.filter-bar select,
-.filter-bar input {
-  padding: 0.4em;
-  border: 2px solid #ffcc00; /* gold border */
-  border-radius: 4px;
-  background-color: white;
-  color: #222;
+/* Grid + card layout */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-top:16px}
+.card{
+  background:#fff;border:1px solid var(--card-border);border-left:6px solid var(--green);
+  border-radius:10px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,.08);
 }
+.name{font-size:18px;font-weight:700;margin:2px 0 6px;color:var(--green)}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
+.pill{background:var(--pill-bg);border:1px solid #cfe5cf;color:#224622;border-radius:999px;padding:3px 10px;font-size:12px}
+.row{display:flex;align-items:center;gap:10px;margin:6px 0}
+.stars{color:var(--gold);font-weight:700}
+.muted{color:var(--muted)}
+.notes{margin-top:6px;color:var(--muted);min-height:2.2em}
 
-.card {
-  background-color: white;
-  border: 1px solid #ddd;
-  border-left: 5px solid #006600; /* green stripe */
-  border-radius: 6px;
-  padding: 1em;
-  margin: 1em 0;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+/* Buttons & links */
+.btn{
+  display:inline-block;background:var(--red);color:#fff;border:0;border-radius:10px;
+  padding:8px 12px;font-weight:700;cursor:pointer;margin-top:8px;text-decoration:none
 }
+.btn:hover{background:#b30000}
+a{color:var(--green)}
 
-.card h2 {
-  color: #006600; /* green title */
-}
+/* Footer count */
+footer#count{margin-top:12px;color:var(--muted);text-align:left}
 
-.view-reviews-btn {
-  background-color: #d40000; /* red button */
-  color: white;
-  border: none;
-  padding: 0.5em 1em;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.view-reviews-btn:hover {
-  background-color: #b30000;
-}
-
-.star {
-  color: #ffcc00; /* gold stars */
-  font-size: 1.1em;
-}
-
-.modal-content {
-  background-color: white;
-  border: 2px solid #006600;
-  border-radius: 6px;
-  padding: 1em;
-}
-
-.modal-header {
-  background-color: #006600;
-  color: white;
-  padding: 0.5em;
-  font-size: 1.2em;
-}
-
-.modal-close {
-  float: right;
-  cursor: pointer;
-  color: white;
-}
+/* Modal */
+.modalOverlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:9999}
+.modal{background:#fff;border:3px solid var(--green);border-radius:12px;max-width:760px;width:100%;max-height:80vh;display:flex;flex-direction:column}
+.modal header{background:var(--green);color:#fff;padding:12px 14px;text-align:left}
+.modal .content{padding:14px;overflow:auto}
+.review{background:#fafafa;border:1px solid #e5e5e5;border-radius:10px;padding:10px;margin:10px 0}
+.review .by{font-weight:700}
+.close{background:transparent;border:0;color:#fff;font-size:22px;cursor:pointer;float:right}
 </style>
 </head>
 <body>
