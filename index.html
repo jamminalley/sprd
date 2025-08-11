@@ -15,6 +15,7 @@
   --gold:#ffcc00;
   --ink:#222;
   --bg:#fdfdfb;
+  --card-bg:#ffffff;
   --muted:#555;
   --card-border:#ddd;
   --pill-bg:#eef5ee;
@@ -38,7 +39,7 @@ h1{margin:0}
 /* Grid + card layout */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-top:16px}
 .card{
-  background:#fff;border:1px solid var(--card-border);border-left:6px solid var(--green);
+  background:var(--card-bg);border:1px solid var(--card-border);border-left:6px solid var(--green);
   border-radius:10px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,.08);
 }
 .name{font-size:18px;font-weight:700;margin:2px 0 6px;color:var(--green)}
@@ -47,7 +48,17 @@ h1{margin:0}
 .row{display:flex;align-items:center;gap:10px;margin:6px 0}
 .stars{color:var(--gold);font-weight:700}
 .muted{color:var(--muted)}
-.notes{margin-top:6px;color:var(--muted);min-height:2.2em}
+
+/* Teaser notes (2 lines + fade) */
+.notes{
+  margin-top:6px;color:var(--muted);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;position:relative;min-height:2.2em;
+}
+.notes::after{
+  content:"";position:absolute;right:0;bottom:0;height:1.4em;width:35%;
+  background:linear-gradient(to right, rgba(255,255,255,0), var(--card-bg));
+}
 
 /* Buttons & links */
 .btn{
@@ -89,7 +100,7 @@ footer#count{margin-top:12px;color:var(--muted);text-align:left}
 <div id="modalOverlay" class="modalOverlay" role="dialog" aria-modal="true" aria-hidden="true">
   <div class="modal">
     <header>
-      <h2 id="modalTitle">Reviews</h2>
+      <h2 id="modalTitle">Details</h2>
       <button class="close" aria-label="Close" onclick="closeModal()">✕</button>
     </header>
     <div class="content">
@@ -100,13 +111,14 @@ footer#count{margin-top:12px;color:var(--muted);text-align:left}
 
 <script>
 /* ======= 1) UPDATE THESE WITH YOUR PUBLISHED CSV LINKS ======= */
-const DIRECTORY_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFCkif4UxnvMNS5cwza23gYx0LioKINM7GvvnpIIBdeUHzR-2ktwFXKcluyzsYhUoDCctm67Y1hSRF/pub?gid=0&single=true&output=csv";     // published CSV for Directory tab
-const REVIEWS_CSV   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFCkif4UxnvMNS5cwza23gYx0LioKINM7GvvnpIIBdeUHzR-2ktwFXKcluyzsYhUoDCctm67Y1hSRF/pub?gid=979754207&single=true&output=csv"; // published CSV for Reviews Public tab
+const DIRECTORY_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFCkif4UxnvMNS5cwza23gYx0LioKINM7GvvnpIIBdeUHzR-2ktwFXKcluyzsYhUoDCctm67Y1hSRF/pub?gid=0&single=true&output=csv";     // Directory tab CSV
+const REVIEWS_CSV   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFCkif4UxnvMNS5cwza23gYx0LioKINM7GvvnpIIBdeUHzR-2ktwFXKcluyzsYhUoDCctm67Y1hSRF/pub?gid=979754207&single=true&output=csv"; // Reviews tab CSV
 /* ============================================================= */
 
 const state = {
-  directory: [],     // rows from directory (one per resource)
-  reviews: {},       // map: resource_id -> array of review rows
+  directory: [],     // one row per resource
+  byId: {},          // resource_id -> resource row
+  reviews: {},       // resource_id -> [reviews]
   filtered: []
 };
 
@@ -128,7 +140,6 @@ function buildReviewMap(rows) {
     if (!id) return;
     (byId[id] ||= []).push(r);
   });
-  // newest first by submitted_at if present
   Object.values(byId).forEach(list => {
     list.sort((a,b)=> new Date(b.submitted_at||0) - new Date(a.submitted_at||0));
   });
@@ -168,12 +179,27 @@ function stars(x) {
   return n.toFixed(1);
 }
 
+function isUrl(s){
+  if(!s) return false;
+  try {
+    const u = new URL(s);
+    return u.protocol === "http:" || u.protocol === "https:" || u.protocol === "mailto:" || u.protocol === "tel:";
+  } catch { return false; }
+}
+
 function renderCards() {
   const grid = document.getElementById("grid");
   const count = document.getElementById("count");
   grid.innerHTML = "";
   state.filtered.forEach(r => {
     const reviewsCount = Number(r.Reviews||0);
+    const contact = r["Contact URL"];
+    const contactHtml = contact
+      ? (isUrl(contact)
+          ? `<div style="margin-top:8px"><a href="${contact}" target="_blank" rel="noopener">Contact / Website ↗</a></div>`
+          : `<div class="muted" style="margin-top:8px">${contact}</div>`)
+      : "";
+
     const card = `
       <div class="card">
         <div class="name">${r.Name||""}</div>
@@ -188,23 +214,53 @@ function renderCards() {
         </div>
         ${r.Modalities ? `<div class="muted">${r.Modalities}</div>` : ""}
         <div class="notes">${r.Notes ? r.Notes : ""}</div>
-        <a class="btn" href="#" onclick="openReviews('${encodeURIComponent(r.resource_id)}','${encodeURIComponent(r.Name||"Reviews")}');return false;">View reviews</a>
-        ${r["Contact URL"] ? `<div style="margin-top:8px"><a href="${r["Contact URL"]}" target="_blank" rel="noopener">Contact / Website ↗</a></div>` : ""}
+        <a class="btn" href="#" onclick="openDetails('${encodeURIComponent(r.resource_id)}');return false;">View details & reviews</a>
+        ${contactHtml}
       </div>`;
     grid.insertAdjacentHTML("beforeend", card);
   });
   count.textContent = `${state.filtered.length} resource${state.filtered.length===1?"":"s"} shown`;
 }
 
-function openReviews(resourceIdEnc, titleEnc) {
+function openDetails(resourceIdEnc){
   const resourceId = decodeURIComponent(resourceIdEnc);
-  const title = decodeURIComponent(titleEnc);
+  const r = state.byId?.[resourceId];
   const list = state.reviews[resourceId] || [];
+
   const container = document.getElementById("reviewsContainer");
-  document.getElementById("modalTitle").textContent = `Reviews — ${title}`;
+  const title = r?.Name || "Details";
+  document.getElementById("modalTitle").textContent = title;
   container.innerHTML = "";
+
+  if (r){
+    const contact = r["Contact URL"];
+    const contactHtml = contact
+      ? (isUrl(contact)
+          ? `<a href="${contact}" target="_blank" rel="noopener">Contact / Website ↗</a>`
+          : `<span class="muted">${contact}</span>`)
+      : "";
+
+    container.insertAdjacentHTML("beforeend", `
+      <div style="margin-bottom:12px">
+        <div class="row" style="margin:0 0 6px"><span class="stars">★ ${stars(r["Avg Rating"])}</span>
+          <span class="muted">&nbsp;(${Number(r.Reviews||0)} review${Number(r.Reviews||0)===1?"":"s"})</span>
+        </div>
+        <div class="muted" style="margin:4px 0">
+          ${r.Type ? `<span class="pill">${r.Type}</span>&nbsp;` : ""}
+          ${r.Level ? `<span class="pill">Level: ${r.Level}</span>&nbsp;` : ""}
+          ${r.Location ? `<span class="pill">${r.Location}</span>` : ""}
+        </div>
+        ${r.Modalities ? `<div class="muted" style="margin:6px 0">${r.Modalities}</div>` : ""}
+        ${r.Notes ? `<div style="margin:6px 0">${r.Notes}</div>` : ""}
+        ${contactHtml ? `<div style="margin:6px 0">${contactHtml}</div>` : ""}
+        <hr style="border:none;border-top:1px solid #e5e5e5;margin:12px 0">
+      </div>
+    `);
+  }
+
+  container.insertAdjacentHTML("beforeend", `<h3 style="margin:0 0 8px">Reviews</h3>`);
   if (!list.length) {
-    container.innerHTML = `<div class="empty">No reviews yet.</div>`;
+    container.insertAdjacentHTML("beforeend", `<div class="empty">No reviews yet.</div>`);
   } else {
     list.forEach(rv => {
       const when = rv.submitted_at ? new Date(rv.submitted_at) : null;
@@ -218,6 +274,7 @@ function openReviews(resourceIdEnc, titleEnc) {
       `);
     });
   }
+
   const overlay = document.getElementById("modalOverlay");
   overlay.style.display = "flex";
   overlay.setAttribute("aria-hidden", "false");
@@ -235,7 +292,7 @@ async function main() {
     const dirRows = csvToObjects(dirCSV);
     const revRows = csvToObjects(revCSV);
 
-    // Normalize directory keys (accept both “Name” and “name_title”, etc., if present)
+    // Normalize directory keys (accept both “Name” and “name_title”, etc.)
     state.directory = dirRows.map(r => ({
       resource_id: r.resource_id || r.Resource_ID || r.id || "",
       Name: r.Name || r.name_title || r.Title || "",
@@ -249,6 +306,7 @@ async function main() {
       Notes: r.Notes || r.notes || ""
     })).filter(r => r.resource_id && r.Name);
 
+    state.byId = Object.fromEntries(state.directory.map(r => [r.resource_id, r]));
     state.reviews = buildReviewMap(revRows);
 
     initFilters();
