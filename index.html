@@ -1,21 +1,239 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>My First GitHub Page</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            text-align: center;
-            margin-top: 50px;
-        }
-        h1 {
-            color: darkgreen;
-        }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Portuguese Resources Directory</title>
+
+<!-- Papa Parse (CSV parser) -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<style>
+  :root {
+    --bg:#0b1020; --card:#121933; --ink:#eaf0ff; --muted:#a8b3d8; --accent:#89b4ff; --pill:#1e2748; --btn:#8bc1ff;
+  }
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  a{color:var(--accent);text-decoration:none}
+  .wrap{max-width:1100px;margin:0 auto;padding:24px}
+  header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+  h1{font-size:24px;margin:0}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  input,select{background:#0f1530;color:var(--ink);border:1px solid #243060;border-radius:10px;padding:8px 10px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+  .card{background:var(--card);border-radius:18px;padding:16px;box-shadow:0 8px 28px rgba(0,0,0,.35)}
+  .name{font-size:18px;font-weight:700;margin:2px 0 6px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
+  .pill{background:var(--pill);color:var(--muted);border-radius:999px;padding:3px 8px;font-size:12px}
+  .row{display:flex;gap:10px;align-items:center;margin:6px 0}
+  .stars{letter-spacing:1px}
+  .muted{color:var(--muted)}
+  .btn{display:inline-block;background:var(--btn);color:#0b1020;font-weight:700;border-radius:10px;padding:8px 12px;margin-top:8px}
+  .notes{margin-top:6px;color:var(--muted);min-height:2.2em}
+
+  /* Modal */
+  .modalOverlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:9999}
+  .modal{background:var(--card);color:var(--ink);border-radius:18px;max-width:760px;width:100%;max-height:80vh;display:flex;flex-direction:column}
+  .modal header{padding:16px;border-bottom:1px solid #243060}
+  .modal h2{margin:0;font-size:20px}
+  .modal .content{padding:16px;overflow:auto}
+  .review{background:#0f1530;border:1px solid #243060;border-radius:12px;padding:10px;margin:10px 0}
+  .review .by{font-weight:700}
+  .modal .close{background:transparent;border:0;color:var(--ink);font-size:22px;cursor:pointer}
+  .empty{color:var(--muted)}
+  footer{margin-top:18px;color:var(--muted);font-size:12px}
+</style>
 </head>
 <body>
-    <h1>Hello, World!</h1>
-    <p>This is my very first GitHub Pages site.</p>
+<div class="wrap">
+  <header>
+    <h1>Portuguese Resources Directory</h1>
+    <div class="controls">
+      <input id="q" placeholder="Search name, notes…" />
+      <select id="type"><option value="">All types</option></select>
+      <select id="level"><option value="">All levels</option></select>
+    </div>
+  </header>
+
+  <div id="grid" class="grid" aria-live="polite"></div>
+  <footer id="count" class="muted"></footer>
+</div>
+
+<!-- Modal -->
+<div id="modalOverlay" class="modalOverlay" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="modal">
+    <header>
+      <h2 id="modalTitle">Reviews</h2>
+      <button class="close" aria-label="Close" onclick="closeModal()">✕</button>
+    </header>
+    <div class="content">
+      <div id="reviewsContainer"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ======= 1) UPDATE THESE WITH YOUR PUBLISHED CSV LINKS ======= */
+const DIRECTORY_CSV = "PASTE_DIRECTORY_CSV_URL_HERE";     // published CSV for Directory tab
+const REVIEWS_CSV   = "PASTE_REVIEWS_PUBLIC_CSV_URL_HERE"; // published CSV for Reviews Public tab
+/* ============================================================= */
+
+const state = {
+  directory: [],     // rows from directory (one per resource)
+  reviews: {},       // map: resource_id -> array of review rows
+  filtered: []
+};
+
+function csvToObjects(csv) {
+  const res = Papa.parse(csv.trim(), { header: true, skipEmptyLines: true });
+  return res.data;
+}
+
+async function fetchCSV(url) {
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error("Failed to fetch " + url);
+  return await r.text();
+}
+
+function buildReviewMap(rows) {
+  const byId = {};
+  rows.forEach(r => {
+    const id = (r.resource_id || "").trim();
+    if (!id) return;
+    (byId[id] ||= []).push(r);
+  });
+  // newest first by submitted_at if present
+  Object.values(byId).forEach(list => {
+    list.sort((a,b)=> new Date(b.submitted_at||0) - new Date(a.submitted_at||0));
+  });
+  return byId;
+}
+
+function uniqSorted(list) {
+  return [...new Set(list.filter(Boolean))].sort();
+}
+
+function initFilters() {
+  const typeSel = document.getElementById("type");
+  const levelSel = document.getElementById("level");
+  const types = uniqSorted(state.directory.map(r=>r.Type));
+  const levels = uniqSorted(state.directory.map(r=>r.Level));
+  types.forEach(t => typeSel.insertAdjacentHTML("beforeend", `<option>${t}</option>`));
+  levels.forEach(l => levelSel.insertAdjacentHTML("beforeend", `<option>${l}</option>`));
+  ["q","type","level"].forEach(id => document.getElementById(id).addEventListener("input", applyFilters));
+}
+
+function applyFilters() {
+  const q = document.getElementById("q").value.toLowerCase().trim();
+  const t = document.getElementById("type").value;
+  const l = document.getElementById("level").value;
+  state.filtered = state.directory.filter(r => {
+    const textBlob = `${r.Name||""} ${r.Notes||""} ${r.Modalities||""} ${r.Location||""}`.toLowerCase();
+    return (!t || r.Type===t) &&
+           (!l || r.Level===l) &&
+           (!q || textBlob.includes(q));
+  });
+  renderCards();
+}
+
+function stars(x) {
+  const n = Number(x||0);
+  if (!n) return "—";
+  return n.toFixed(1);
+}
+
+function renderCards() {
+  const grid = document.getElementById("grid");
+  const count = document.getElementById("count");
+  grid.innerHTML = "";
+  state.filtered.forEach(r => {
+    const reviewsCount = Number(r.Reviews||0);
+    const card = `
+      <div class="card">
+        <div class="name">${r.Name||""}</div>
+        <div class="meta">
+          ${r.Type ? `<div class="pill">${r.Type}</div>` : ""}
+          ${r.Level ? `<div class="pill">Level: ${r.Level}</div>` : ""}
+          ${r.Location ? `<div class="pill">${r.Location}</div>` : ""}
+        </div>
+        <div class="row">
+          <span class="stars">★ ${stars(r["Avg Rating"])}</span>
+          <span class="muted">(${reviewsCount} review${reviewsCount===1?"":"s"})</span>
+        </div>
+        ${r.Modalities ? `<div class="muted">${r.Modalities}</div>` : ""}
+        <div class="notes">${r.Notes ? r.Notes : ""}</div>
+        <a class="btn" href="#" onclick="openReviews('${encodeURIComponent(r.resource_id)}','${encodeURIComponent(r.Name||"Reviews")}');return false;">View reviews</a>
+        ${r["Contact URL"] ? `<div style="margin-top:8px"><a href="${r["Contact URL"]}" target="_blank" rel="noopener">Contact / Website ↗</a></div>` : ""}
+      </div>`;
+    grid.insertAdjacentHTML("beforeend", card);
+  });
+  count.textContent = `${state.filtered.length} resource${state.filtered.length===1?"":"s"} shown`;
+}
+
+function openReviews(resourceIdEnc, titleEnc) {
+  const resourceId = decodeURIComponent(resourceIdEnc);
+  const title = decodeURIComponent(titleEnc);
+  const list = state.reviews[resourceId] || [];
+  const container = document.getElementById("reviewsContainer");
+  document.getElementById("modalTitle").textContent = `Reviews — ${title}`;
+  container.innerHTML = "";
+  if (!list.length) {
+    container.innerHTML = `<div class="empty">No reviews yet.</div>`;
+  } else {
+    list.forEach(rv => {
+      const when = rv.submitted_at ? new Date(rv.submitted_at) : null;
+      const dateStr = when ? when.toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'}) : "";
+      container.insertAdjacentHTML("beforeend", `
+        <div class="review">
+          <div class="by">★ ${rv.rating || rv.rating_1_to_5 || "—"} — ${rv.reviewer || "Anonymous"}</div>
+          ${dateStr ? `<div class="muted" style="font-size:12px">${dateStr}</div>` : ""}
+          <div style="margin-top:4px">${(rv.review_text||"").replace(/\n/g,"<br>")}</div>
+        </div>
+      `);
+    });
+  }
+  const overlay = document.getElementById("modalOverlay");
+  overlay.style.display = "flex";
+  overlay.setAttribute("aria-hidden", "false");
+}
+
+function closeModal(){
+  const overlay = document.getElementById("modalOverlay");
+  overlay.style.display = "none";
+  overlay.setAttribute("aria-hidden", "true");
+}
+
+async function main() {
+  try {
+    const [dirCSV, revCSV] = await Promise.all([fetchCSV(DIRECTORY_CSV), fetchCSV(REVIEWS_CSV)]);
+    const dirRows = csvToObjects(dirCSV);
+    const revRows = csvToObjects(revCSV);
+
+    // Normalize directory keys (accept both “Name” and “name_title”, etc., if present)
+    state.directory = dirRows.map(r => ({
+      resource_id: r.resource_id || r.Resource_ID || r.id || "",
+      Name: r.Name || r.name_title || r.Title || "",
+      Type: r.Type || r.type || "",
+      Level: r.Level || r.level || "",
+      "Avg Rating": r["Avg Rating"] || r.avg_rating || "",
+      Reviews: r.Reviews || r.num_reviews || "",
+      Modalities: r.Modalities || r.modalities || "",
+      Location: r.Location || r.location || "",
+      "Contact URL": r["Contact"] || r["Contact URL"] || r.contact_url || "",
+      Notes: r.Notes || r.notes || ""
+    })).filter(r => r.resource_id && r.Name);
+
+    state.reviews = buildReviewMap(revRows);
+
+    initFilters();
+    state.filtered = state.directory.slice();
+    renderCards();
+  } catch (err) {
+    document.getElementById("grid").innerHTML = `<div class="muted">Error loading data: ${err.message}</div>`;
+    console.error(err);
+  }
+}
+
+main();
+</script>
 </body>
 </html>
