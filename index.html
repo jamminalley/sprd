@@ -45,6 +45,18 @@ h1{margin:0}
 }
 .btn-ghost:hover{background:#fff6cc}
 
+/* Disclaimer banner */
+.disclaimer{
+  background:#fff8e1;               /* soft yellow */
+  border:1px solid #fbc02d;          /* amber border */
+  border-radius:10px;
+  padding:12px 16px;
+  margin:16px 0;                     /* space above/below */
+  color:#444;
+  font-size:.9rem;
+  line-height:1.4;
+}
+
 /* Grid + card layout */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-top:16px}
 .card{
@@ -106,6 +118,11 @@ footer#count{margin-top:12px;color:var(--muted);text-align:left}
       <button class="btn-ghost" id="clearBtn" aria-label="Clear filters">Clear filters</button>
     </div>
   </header>
+
+  <!-- Disclaimer (subtle banner) -->
+  <div class="disclaimer" role="note">
+    DISCLAIMER - All reviews and information posted here are based on personal experiences of members of Porto Together's Speaking Portuguese group and should be provided in good faith. Other experiences may vary. Use these reviews and information at your own risk.
+  </div>
 
   <div id="grid" class="grid" aria-live="polite"></div>
   <footer id="count" class="muted"></footer>
@@ -367,7 +384,7 @@ async function main() {
       };
     }).filter(r => r.resource_id && r.Name);
 
-    /* === NEW: sort alphabetically by Name (A→Z) === */
+    /* Sort alphabetically by Name (A→Z) */
     state.directory.sort((a,b) => a.Name.localeCompare(b.Name, undefined, {sensitivity:'base'}));
 
     state.byId = Object.fromEntries(state.directory.map(r => [r.resource_id, r]));
