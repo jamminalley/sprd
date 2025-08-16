@@ -84,6 +84,12 @@ footer#count{margin-top:12px;color:var(--muted);text-align:left}
 .review{background:#fafafa;border:1px solid #e5e5e5;border-radius:10px;padding:10px;margin:10px 0}
 .review .by{font-weight:700}
 .close{background:transparent;border:0;color:#fff;font-size:22px;cursor:pointer;float:right}
+
+/* Posted by spacing */
+.posted-by{
+  margin-bottom:0.5rem; /* extra breathing room above the button */
+  display:block;
+}
 </style>
 </head>
 <body>
@@ -219,7 +225,9 @@ function renderCards() {
       ? `<div style="margin-top:8px"><a href="${contact}" target="_blank" rel="noopener">Contact / Website ↗</a></div>`
       : "";
 
-    const postedBy = r.PostedBy ? `Posted by: ${r.PostedBy}${r.SelfFlag ? " (self)" : ""}` : "";
+    const postedByLine = r.PostedBy
+      ? `Posted by: ${r.PostedBy}${r.SelfFlag ? " (self)" : ""}`
+      : "";
 
     const metaHtml = `
       <div class="meta">
@@ -240,7 +248,7 @@ function renderCards() {
         </div>
         ${r.Modalities ? `<div class="muted">${r.Modalities}</div>` : ""}
         <div class="notes">${r.Notes ? r.Notes : ""}</div>
-        ${postedBy ? `<div class="muted small" style="margin-top:6px">${postedBy}</div>` : ""}
+        ${postedByLine ? `<div class="posted-by muted small">${postedByLine}</div>` : ""}
         <a class="btn" href="#" onclick="openDetails('${encodeURIComponent(r.resource_id)}');return false;">View details & reviews</a>
         ${contactHtml}
       </div>`;
@@ -267,7 +275,9 @@ function openDetails(resourceIdEnc){
           : `<span class="muted">Contact: ${contact}</span>`)
       : "";
 
-    const postedBy = r.PostedBy ? `Posted by: ${r.PostedBy}${r.SelfFlag ? " (self)" : ""}` : "";
+    const postedByLine = r.PostedBy
+      ? `Posted by: ${r.PostedBy}${r.SelfFlag ? " (self)" : ""}`
+      : "";
 
     const chipsHtml = `
       <div class="muted" style="margin:4px 0">
@@ -286,7 +296,7 @@ function openDetails(resourceIdEnc){
         ${chipsHtml}
         ${r.Modalities ? `<div class="muted" style="margin:6px 0">${r.Modalities}</div>` : ""}
         ${r.Notes ? `<div style="margin:6px 0">${r.Notes}</div>` : ""}
-        ${postedBy ? `<div class="muted" style="margin:6px 0">${postedBy}</div>` : ""}
+        ${postedByLine ? `<div class="muted" style="margin:6px 0">${postedByLine}</div>` : ""}
         ${contactHtml ? `<div style="margin:6px 0">${contactHtml}</div>` : ""}
         <hr style="border:none;border-top:1px solid #e5e5e5;margin:12px 0">
       </div>
@@ -327,24 +337,31 @@ async function main() {
     const dirRows = csvToObjects(dirCSV);
     const revRows = csvToObjects(revCSV);
 
-    // Normalize directory keys
+    // Normalize directory keys (single "(self)" logic + badge)
     state.directory = dirRows.map(r => {
-      const postedBy = r.posted_by || r.Posted_by || r["Posted By"] || r.postedBy || r.PostedBy || "";
+      const postedByRaw =
+        r.posted_by || r.Posted_by || r["Posted By"] || r.postedBy || r.PostedBy || "";
+
       const selfRaw  = r.self || r.posted_by_self || r.self_flag || r.Self || r["Self?"] || "";
-      const selfFlag = toBoolSelf(selfRaw) || (postedBy && String(postedBy).toLowerCase().includes("(self)"));
+      const selfFromText = /\(self\)/i.test(String(postedByRaw));
+      const selfFlag = toBoolSelf(selfRaw) || selfFromText;
+
+      // Clean any "(self)" in the source so we append at display time only once
+      const postedByClean = String(postedByRaw).replace(/\s*\(self\)\s*/ig, '').trim();
+
       return {
         resource_id: r.resource_id || r.Resource_ID || r.id || "",
-        Name: r.Name || r.name_title || r.Title || "",
-        Type: r.Type || r.type || "",
-        Level: r.Level || r.level || "",
-        "Avg Rating": r["Avg Rating"] || r.avg_rating || "",
-        Reviews: r.Reviews || r.num_reviews || "",
-        Modalities: r.Modalities || r.modalities || "",
-        Location: r.Location || r.location || "",
+        Name:        r.Name || r.name_title || r.Title || "",
+        Type:        r.Type || r.type || "",
+        Level:       r.Level || r.level || "",
+        "Avg Rating":r["Avg Rating"] || r.avg_rating || "",
+        Reviews:     r.Reviews || r.num_reviews || "",
+        Modalities:  r.Modalities || r.modalities || "",
+        Location:    r.Location || r.location || "",
         "Contact URL": r["Contact"] || r["Contact URL"] || r.contact_url || "",
-        Notes: r.Notes || r.notes || "",
-        PostedBy: postedBy || "",
-        SelfFlag: !!selfFlag
+        Notes:       r.Notes || r.notes || "",
+        PostedBy:    postedByClean,
+        SelfFlag:    !!selfFlag
       };
     }).filter(r => r.resource_id && r.Name);
 
