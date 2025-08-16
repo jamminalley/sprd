@@ -85,9 +85,12 @@ footer#count{margin-top:12px;color:var(--muted);text-align:left}
 .review .by{font-weight:700}
 .close{background:transparent;border:0;color:#fff;font-size:22px;cursor:pointer;float:right}
 
-/* Posted by spacing */
+/* Posted by spacing & tone */
 .posted-by{
-  margin-bottom:0.5rem; /* extra breathing room above the button */
+  font-size:.85em;
+  color:#777;          /* lighter = metadata */
+  margin-top:8px;      /* space from description */
+  margin-bottom:12px;  /* space before button */
   display:block;
 }
 </style>
@@ -122,10 +125,10 @@ footer#count{margin-top:12px;color:var(--muted);text-align:left}
 </div>
 
 <script>
-/* ======= 1) UPDATE THESE WITH YOUR PUBLISHED CSV LINKS ======= */
+/* ======= 1) YOUR PUBLISHED CSV LINKS ======= */
 const DIRECTORY_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFCkif4UxnvMNS5cwza23gYx0LioKINM7GvvnpIIBdeUHzR-2ktwFXKcluyzsYhUoDCctm67Y1hSRF/pub?gid=0&single=true&output=csv";
 const REVIEWS_CSV   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFCkif4UxnvMNS5cwza23gYx0LioKINM7GvvnpIIBdeUHzR-2ktwFXKcluyzsYhUoDCctm67Y1hSRF/pub?gid=979754207&single=true&output=csv";
-/* ============================================================= */
+/* =========================================== */
 
 const state = {
   directory: [],     // one row per resource
@@ -248,7 +251,7 @@ function renderCards() {
         </div>
         ${r.Modalities ? `<div class="muted">${r.Modalities}</div>` : ""}
         <div class="notes">${r.Notes ? r.Notes : ""}</div>
-        ${postedByLine ? `<div class="posted-by muted small">${postedByLine}</div>` : ""}
+        ${postedByLine ? `<span class="posted-by">${postedByLine}</span>` : ""}
         <a class="btn" href="#" onclick="openDetails('${encodeURIComponent(r.resource_id)}');return false;">View details & reviews</a>
         ${contactHtml}
       </div>`;
@@ -337,7 +340,7 @@ async function main() {
     const dirRows = csvToObjects(dirCSV);
     const revRows = csvToObjects(revCSV);
 
-    // Normalize directory keys (single "(self)" logic + badge)
+    // Normalize + derive flags
     state.directory = dirRows.map(r => {
       const postedByRaw =
         r.posted_by || r.Posted_by || r["Posted By"] || r.postedBy || r.PostedBy || "";
@@ -346,7 +349,6 @@ async function main() {
       const selfFromText = /\(self\)/i.test(String(postedByRaw));
       const selfFlag = toBoolSelf(selfRaw) || selfFromText;
 
-      // Clean any "(self)" in the source so we append at display time only once
       const postedByClean = String(postedByRaw).replace(/\s*\(self\)\s*/ig, '').trim();
 
       return {
@@ -365,11 +367,14 @@ async function main() {
       };
     }).filter(r => r.resource_id && r.Name);
 
+    /* === NEW: sort alphabetically by Name (A→Z) === */
+    state.directory.sort((a,b) => a.Name.localeCompare(b.Name, undefined, {sensitivity:'base'}));
+
     state.byId = Object.fromEntries(state.directory.map(r => [r.resource_id, r]));
     state.reviews = buildReviewMap(revRows);
 
     initFilters();
-    state.filtered = state.directory.slice();
+    state.filtered = state.directory.slice();   // starts sorted
     renderCards();
   } catch (err) {
     document.getElementById("grid").innerHTML = `<div class="muted">Error loading data: ${err.message}</div>`;
