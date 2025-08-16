@@ -35,6 +35,15 @@ h1{margin:0}
   padding:8px 10px;border:2px solid var(--gold);border-radius:10px;background:#fff;color:var(--ink);
 }
 .controls input::placeholder{color:#777}
+.btn{
+  display:inline-block;background:var(--red);color:#fff;border:0;border-radius:10px;
+  padding:8px 12px;font-weight:700;cursor:pointer;text-decoration:none
+}
+.btn:hover{background:#b30000}
+.btn-ghost{
+  background:#fff;color:var(--ink);border:2px solid var(--gold);border-radius:10px;font-weight:700;
+}
+.btn-ghost:hover{background:#fff6cc}
 
 /* Grid + card layout */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-top:16px}
@@ -45,9 +54,11 @@ h1{margin:0}
 .name{font-size:18px;font-weight:700;margin:2px 0 6px;color:var(--green)}
 .meta{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
 .pill{background:var(--pill-bg);border:1px solid #cfe5cf;color:#224622;border-radius:999px;padding:3px 10px;font-size:12px}
+.pill--alert{background:#ffecec;border-color:#f2b3b3;color:#8a0000}
 .row{display:flex;align-items:center;gap:10px;margin:6px 0}
 .stars{color:var(--gold);font-weight:700}
 .muted{color:var(--muted)}
+.small{font-size:12px}
 
 /* Teaser notes (2 lines + fade) */
 .notes{
@@ -60,12 +71,6 @@ h1{margin:0}
   background:linear-gradient(to right, rgba(255,255,255,0), var(--card-bg));
 }
 
-/* Buttons & links */
-.btn{
-  display:inline-block;background:var(--red);color:#fff;border:0;border-radius:10px;
-  padding:8px 12px;font-weight:700;cursor:pointer;margin-top:8px;text-decoration:none
-}
-.btn:hover{background:#b30000}
 a{color:var(--green)}
 
 /* Footer count */
@@ -89,6 +94,7 @@ footer#count{margin-top:12px;color:var(--muted);text-align:left}
       <input id="q" placeholder="Search name, notes…" />
       <select id="type"><option value="">All types</option></select>
       <select id="level"><option value="">All levels</option></select>
+      <button class="btn-ghost" id="clearBtn" aria-label="Clear filters">Clear filters</button>
     </div>
   </header>
 
@@ -158,6 +164,7 @@ function initFilters() {
   types.forEach(t => typeSel.insertAdjacentHTML("beforeend", `<option>${t}</option>`));
   levels.forEach(l => levelSel.insertAdjacentHTML("beforeend", `<option>${l}</option>`));
   ["q","type","level"].forEach(id => document.getElementById(id).addEventListener("input", applyFilters));
+  document.getElementById("clearBtn").addEventListener("click", clearFilters);
 }
 
 function applyFilters() {
@@ -171,6 +178,13 @@ function applyFilters() {
            (!q || textBlob.includes(q));
   });
   renderCards();
+}
+
+function clearFilters(){
+  document.getElementById("q").value = "";
+  document.getElementById("type").value = "";
+  document.getElementById("level").value = "";
+  applyFilters();
 }
 
 function stars(x) {
@@ -187,6 +201,13 @@ function isUrl(s){
   } catch { return false; }
 }
 
+/* normalize truthy self flags */
+function toBoolSelf(v){
+  if (!v) return false;
+  const s = String(v).toLowerCase().trim();
+  return s === 'yes' || s === 'true' || s === '1' || s.includes('(self)') || s === 'self';
+}
+
 function renderCards() {
   const grid = document.getElementById("grid");
   const count = document.getElementById("count");
@@ -194,25 +215,32 @@ function renderCards() {
   state.filtered.forEach(r => {
     const reviewsCount = Number(r.Reviews||0);
     const contact = r["Contact URL"];
-    // On cards: show only if it's a real link
     const contactHtml = (contact && isUrl(contact))
       ? `<div style="margin-top:8px"><a href="${contact}" target="_blank" rel="noopener">Contact / Website ↗</a></div>`
       : "";
 
+    const postedBy = r.PostedBy ? `Posted by: ${r.PostedBy}${r.SelfFlag ? " (self)" : ""}` : "";
+
+    const metaHtml = `
+      <div class="meta">
+        ${r.Type ? `<div class="pill">${r.Type}</div>` : ""}
+        ${r.Level ? `<div class="pill">Level: ${r.Level}</div>` : ""}
+        ${r.Location ? `<div class="pill">${r.Location}</div>` : ""}
+        ${r.SelfFlag ? `<div class="pill pill--alert">Self-promo</div>` : ""}
+      </div>
+    `;
+
     const card = `
       <div class="card">
         <div class="name">${r.Name||""}</div>
-        <div class="meta">
-          ${r.Type ? `<div class="pill">${r.Type}</div>` : ""}
-          ${r.Level ? `<div class="pill">Level: ${r.Level}</div>` : ""}
-          ${r.Location ? `<div class="pill">${r.Location}</div>` : ""}
-        </div>
+        ${metaHtml}
         <div class="row">
           <span class="stars">★ ${stars(r["Avg Rating"])}</span>
           <span class="muted">(${reviewsCount} review${reviewsCount===1?"":"s"})</span>
         </div>
         ${r.Modalities ? `<div class="muted">${r.Modalities}</div>` : ""}
         <div class="notes">${r.Notes ? r.Notes : ""}</div>
+        ${postedBy ? `<div class="muted small" style="margin-top:6px">${postedBy}</div>` : ""}
         <a class="btn" href="#" onclick="openDetails('${encodeURIComponent(r.resource_id)}');return false;">View details & reviews</a>
         ${contactHtml}
       </div>`;
@@ -233,25 +261,32 @@ function openDetails(resourceIdEnc){
 
   if (r){
     const contact = r["Contact URL"];
-    // In modal: link if URL, else prepend "Contact: "
     const contactHtml = contact
       ? (isUrl(contact)
           ? `<a href="${contact}" target="_blank" rel="noopener">Contact / Website ↗</a>`
           : `<span class="muted">Contact: ${contact}</span>`)
       : "";
 
+    const postedBy = r.PostedBy ? `Posted by: ${r.PostedBy}${r.SelfFlag ? " (self)" : ""}` : "";
+
+    const chipsHtml = `
+      <div class="muted" style="margin:4px 0">
+        ${r.Type ? `<span class="pill">${r.Type}</span>&nbsp;` : ""}
+        ${r.Level ? `<span class="pill">Level: ${r.Level}</span>&nbsp;` : ""}
+        ${r.Location ? `<span class="pill">${r.Location}</span>&nbsp;` : ""}
+        ${r.SelfFlag ? `<span class="pill pill--alert">Self-promo</span>` : ""}
+      </div>
+    `;
+
     container.insertAdjacentHTML("beforeend", `
       <div style="margin-bottom:12px">
         <div class="row" style="margin:0 0 6px"><span class="stars">★ ${stars(r["Avg Rating"])}</span>
           <span class="muted">&nbsp;(${Number(r.Reviews||0)} review${Number(r.Reviews||0)===1?"":"s"})</span>
         </div>
-        <div class="muted" style="margin:4px 0">
-          ${r.Type ? `<span class="pill">${r.Type}</span>&nbsp;` : ""}
-          ${r.Level ? `<span class="pill">Level: ${r.Level}</span>&nbsp;` : ""}
-          ${r.Location ? `<span class="pill">${r.Location}</span>` : ""}
-        </div>
+        ${chipsHtml}
         ${r.Modalities ? `<div class="muted" style="margin:6px 0">${r.Modalities}</div>` : ""}
         ${r.Notes ? `<div style="margin:6px 0">${r.Notes}</div>` : ""}
+        ${postedBy ? `<div class="muted" style="margin:6px 0">${postedBy}</div>` : ""}
         ${contactHtml ? `<div style="margin:6px 0">${contactHtml}</div>` : ""}
         <hr style="border:none;border-top:1px solid #e5e5e5;margin:12px 0">
       </div>
@@ -293,18 +328,25 @@ async function main() {
     const revRows = csvToObjects(revCSV);
 
     // Normalize directory keys
-    state.directory = dirRows.map(r => ({
-      resource_id: r.resource_id || r.Resource_ID || r.id || "",
-      Name: r.Name || r.name_title || r.Title || "",
-      Type: r.Type || r.type || "",
-      Level: r.Level || r.level || "",
-      "Avg Rating": r["Avg Rating"] || r.avg_rating || "",
-      Reviews: r.Reviews || r.num_reviews || "",
-      Modalities: r.Modalities || r.modalities || "",
-      Location: r.Location || r.location || "",
-      "Contact URL": r["Contact"] || r["Contact URL"] || r.contact_url || "",
-      Notes: r.Notes || r.notes || ""
-    })).filter(r => r.resource_id && r.Name);
+    state.directory = dirRows.map(r => {
+      const postedBy = r.posted_by || r.Posted_by || r["Posted By"] || r.postedBy || r.PostedBy || "";
+      const selfRaw  = r.self || r.posted_by_self || r.self_flag || r.Self || r["Self?"] || "";
+      const selfFlag = toBoolSelf(selfRaw) || (postedBy && String(postedBy).toLowerCase().includes("(self)"));
+      return {
+        resource_id: r.resource_id || r.Resource_ID || r.id || "",
+        Name: r.Name || r.name_title || r.Title || "",
+        Type: r.Type || r.type || "",
+        Level: r.Level || r.level || "",
+        "Avg Rating": r["Avg Rating"] || r.avg_rating || "",
+        Reviews: r.Reviews || r.num_reviews || "",
+        Modalities: r.Modalities || r.modalities || "",
+        Location: r.Location || r.location || "",
+        "Contact URL": r["Contact"] || r["Contact URL"] || r.contact_url || "",
+        Notes: r.Notes || r.notes || "",
+        PostedBy: postedBy || "",
+        SelfFlag: !!selfFlag
+      };
+    }).filter(r => r.resource_id && r.Name);
 
     state.byId = Object.fromEntries(state.directory.map(r => [r.resource_id, r]));
     state.reviews = buildReviewMap(revRows);
