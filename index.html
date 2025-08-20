@@ -166,10 +166,15 @@ async function fetchCSV(url) {
 }
 
 function pickByHeader(row, ...patterns) {
-  // Find first cell whose header matches any regex in patterns
-  for (const key of Object.keys(row)) {
-    const k = String(key).toLowerCase();
-    if (patterns.some(rx => rx.test(k))) return row[key];
+  // Try regexes against a TRIMMED, lowercased header
+  for (const [key, val] of Object.entries(row)) {
+    const k = String(key).toLowerCase().trim().replace(/\s+/g, ' ');
+    if (patterns.some(rx => rx.test(k))) return val;
+  }
+  // Explicit fallback for your long “Submitted by … WhatsApp” title
+  for (const [key, val] of Object.entries(row)) {
+    const k = String(key).toLowerCase().trim().replace(/\s+/g, ' ');
+    if (k === 'submitted by (please use your whatsapp?)') return val;
   }
   return "";
 }
@@ -203,12 +208,14 @@ function buildSupportMap(rows) {
 
     const who = pickByHeader(
       r,
-      /submitted.*by/i,
-      /support(er|ed)?\b.*by/i,
+      /submitted\s*by/i,
+      /support(er|ed)?\s*by/i,
       /\bname\b/i,
       /reviewer/i,
+      /whats\s*app/i,
       /whatsapp/i
     );
+
 
     const comment = pickByHeader(
       r,
