@@ -416,4 +416,20 @@ async function main() {
 
     state.directory.sort((a,b) => a.Name.localeCompare(b.Name, undefined, {sensitivity:'base'}));
 
-    state.by
+      state.byId    = Object.fromEntries(state.directory.map(r => [r.resource_id, r]));
+    state.support = buildSupportMap(supRows);
+
+    initFilters();
+    state.filtered = state.directory.slice();
+    renderCards();
+  } catch (err) {
+    document.getElementById("grid").innerHTML = `<div class="muted">Error loading data: ${err.message}</div>`;
+    console.error(err);
+  }
+}
+
+main();
+</script>
+</body>
+</html>
+
