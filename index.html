@@ -165,49 +165,77 @@ async function fetchCSV(url) {
   return await r.text();
 }
 
-/* Build map of supporters/comments keyed by resource_id */
+function pickByHeader(row, ...patterns) {
+  // Find first cell whose header matches any regex in patterns
+  for (const key of Object.keys(row)) {
+    const k = String(key).toLowerCase();
+    if (patterns.some(rx => rx.test(k))) return row[key];
+  }
+  return "";
+}
+
+function extractResourceId(row) {
+  // 1) Exact resource_id if present
+  const explicit = row.resource_id || row.Resource_ID || row["resource_id"] || "";
+  if (explicit) return String(explicit).trim();
+
+  // 2) A "Resource" choice like "RSC-0001 — Name"
+  const choice = pickByHeader(
+    row,
+    /^resource\b/i,
+    /\bresource\b/i
+  );
+  if (choice && String(choice).includes(" — ")) {
+    return String(choice).split(" — ")[0].trim();
+  }
+  return "";
+}
+
 function buildSupportMap(rows) {
   const byId = {};
   rows.forEach(r => {
-    // Resource comes in as "RSC-0001 — Name" in many cases; split out ID safely
-    const resourceChoice = r.Resource || r.resource || r["resource"] || r["Resource *"] || "";
-    let rid = (r.resource_id || "").trim();
-    if (!rid && resourceChoice && resourceChoice.includes(" — ")) {
-      rid = resourceChoice.split(" — ")[0].trim();
-    }
+    // Optional: only Approved rows if a Status column exists
+    const status = pickByHeader(r, /^status$/i, /\bstatus\b/i);
+    if (status && String(status).trim().toLowerCase() !== "approved") return;
+
+    const rid = extractResourceId(r);
     if (!rid) return;
 
-    // Comment / text
-    const comment = r.comment_text || r.comments || r["Comments"] || r["Comments Please keep comments civil..."] || r["Comments (Please keep comments civil...)"] || r.review_text || "";
+    const who = pickByHeader(
+      r,
+      /submitted.*by/i,
+      /support(er|ed)?\b.*by/i,
+      /\bname\b/i,
+      /reviewer/i,
+      /whatsapp/i
+    );
 
-    // Submitted by (name/initials/WhatsApp handle)
-    const who = r.reviewer || r.name || r.recommended_by || r.submitted_by ||
-                r["Submitted by"] || r["Submitted by (please use your WhatsApp?)"] ||
-                r["Submitted by (please use your WhatsApp?)"] || r["Submitted by (please use your WhatsApp?) "] ||
-                r["Submitted by (please use your WhatsApp?)"] || r["Submitted by (please use your WhatsApp?)"] ||
-                r["Submitted by (please use your WhatsApp?)"] || r["Submitted by (please use your WhatsApp?)"] ||
-                r["Submitted by (please use your WhatsApp?)"] || r["Submitted by (please use your WhatsApp?)"] ||
-                r["Submitted by (please use your WhatsApp?)"] || r["Submitted by (please use your WhatsApp?)"] ||
-                r["Submitted by (please use your WhatsApp?)"] || r["Submitted by (please use your WhatsApp?)"] ||
-                r["Submitted by (please use your WhatsApp?)"] || r["Submitted by (please use your WhatsApp?)"] ||
-                r["Submitted by (please use your WhatsApp?)"] || r["Submitted by (please use your WhatsApp?)"] ||
-                r["Submitted by (please use your WhatsApp?)"] || r["Submitted by (please use your WhatsApp?)"] ||
-                r["Submitted by (please use your WhatsApp?)"] ||
-                r["Submitted by (please use your WhatsApp?)"] || r["Submitted by (please use your WhatsApp?)"] ||
-                r["Submitted by (please use your WhatsApp?)"] ||
-                ""; // robust but ugly—covers long header variants
+    const comment = pickByHeader(
+      r,
+      /^comments?$/i,
+      /^comment text$/i,
+      /comment/i,
+      /review[_ ]?text/i,
+      /feedback/i,
+      /notes?/i
+    );
 
-    // Timestamp
-    const ts = r.submitted_at || r.Timestamp || r.timestamp || r["Form Timestamp"] || "";
+    const when = pickByHeader(
+      r,
+      /submitted_at/i,
+      /^timestamp$/i,
+      /time/i,
+      /date/i
+    );
 
     (byId[rid] ||= []).push({
       who: String(who || "").trim() || "Anonymous",
       text: String(comment || "").trim(),
-      when: ts
+      when
     });
   });
 
-  // newest first by timestamp if we can parse
+  // newest first
   Object.values(byId).forEach(list => {
     list.sort((a,b)=> new Date(b.when || 0) - new Date(a.when || 0));
   });
