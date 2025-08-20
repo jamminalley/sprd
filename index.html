@@ -32,7 +32,7 @@ h1{margin:0}
 /* Controls (search + filters) */
 .controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:10px}
 .controls input,.controls select{
-  padding:8px 10px;border:2px solid var(--gold);border-radius:10px;background:#fff;color:var(--ink);
+  padding:8px 10px;border:2px solid var(--gold);border-radius:10px;background:#fff;color:#222;
 }
 .controls input::placeholder{color:#777}
 .btn{
@@ -41,20 +41,14 @@ h1{margin:0}
 }
 .btn:hover{background:#b30000}
 .btn-ghost{
-  background:#fff;color:var(--ink);border:2px solid var(--gold);border-radius:10px;font-weight:700;
+  background:#fff;color:#222;border:2px solid var(--gold);border-radius:10px;font-weight:700;
 }
 .btn-ghost:hover{background:#fff6cc}
 
-/* Disclaimer banner */
+/* Disclaimer */
 .disclaimer{
-  background:#fff8e1;
-  border:1px solid #fbc02d;
-  border-radius:10px;
-  padding:12px 16px;
-  margin:16px 0;
-  color:#444;
-  font-size:.9rem;
-  line-height:1.4;
+  background:#fff8e1;border:1px solid #fbc02d;border-radius:10px;
+  padding:12px 16px;margin:16px 0;color:#444;font-size:.9rem;line-height:1.4;
 }
 
 /* Grid + cards */
@@ -96,13 +90,9 @@ footer#count{margin-top:12px;color:var(--muted);text-align:left}
 .review .by{font-weight:700}
 .close{background:transparent;border:0;color:#fff;font-size:22px;cursor:pointer;float:right}
 
-/* Posted/Recommended by line */
+/* “Originally recommended by” line */
 .posted-by{
-  font-size:.85em;
-  color:#777;
-  margin-top:8px;      /* space from description */
-  margin-bottom:12px;  /* space before button */
-  display:block;
+  font-size:.85em;color:#777;margin-top:8px;margin-bottom:12px;display:block;
 }
 </style>
 </head>
@@ -118,7 +108,6 @@ footer#count{margin-top:12px;color:var(--muted);text-align:left}
     </div>
   </header>
 
-  <!-- Disclaimer -->
   <div class="disclaimer" role="note">
     DISCLAIMER - All recommendations here are based on personal experiences of members of Porto Together's Speaking Portuguese group and should be provided in good faith. Other experiences may vary. Use this information at your own risk.
   </div>
@@ -141,12 +130,12 @@ footer#count{margin-top:12px;color:var(--muted);text-align:left}
 </div>
 
 <script>
-/* ======= 1) YOUR PUBLISHED CSV LINKS ======= */
-/* DIRECTORY_CSV: Aggregated/Public View “Directory” sheet (one row per resource)
-   SUPPORT_CSV:   Public “supporting recommendations / comments” sheet */
+/* ======= 1) PUBLISHED CSV LINKS ======= */
+/* DIRECTORY_CSV: Public “Directory” (one row per resource)
+   SUPPORT_CSV:   Public “Recommendations” (supporting recs/comments) */
 const DIRECTORY_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFCkif4UxnvMNS5cwza23gYx0LioKINM7GvvnpIIBdeUHzR-2ktwFXKcluyzsYhUoDCctm67Y1hSRF/pub?gid=0&single=true&output=csv";
 const SUPPORT_CSV   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFCkif4UxnvMNS5cwza23gYx0LioKINM7GvvnpIIBdeUHzR-2ktwFXKcluyzsYhUoDCctm67Y1hSRF/pub?gid=979754207&single=true&output=csv";
-/* =========================================== */
+/* ===================================== */
 
 const state = {
   directory: [],   // one row per resource
@@ -166,30 +155,17 @@ async function fetchCSV(url) {
 }
 
 function pickByHeader(row, ...patterns) {
-  // Try regexes against a TRIMMED, lowercased header
-  for (const [key, val] of Object.entries(row)) {
-    const k = String(key).toLowerCase().trim().replace(/\s+/g, ' ');
-    if (patterns.some(rx => rx.test(k))) return val;
-  }
-  // Explicit fallback for your long “Submitted by … WhatsApp” title
-  for (const [key, val] of Object.entries(row)) {
-    const k = String(key).toLowerCase().trim().replace(/\s+/g, ' ');
-    if (k === 'submitted by (please use your whatsapp?)') return val;
+  for (const key of Object.keys(row)) {
+    const k = String(key).toLowerCase();
+    if (patterns.some(rx => rx.test(k))) return row[key];
   }
   return "";
 }
 
 function extractResourceId(row) {
-  // 1) Exact resource_id if present
   const explicit = row.resource_id || row.Resource_ID || row["resource_id"] || "";
   if (explicit) return String(explicit).trim();
-
-  // 2) A "Resource" choice like "RSC-0001 — Name"
-  const choice = pickByHeader(
-    row,
-    /^resource\b/i,
-    /\bresource\b/i
-  );
+  const choice = pickByHeader(row, /^resource\b/i, /\bresource\b/i);
   if (choice && String(choice).includes(" — ")) {
     return String(choice).split(" — ")[0].trim();
   }
@@ -206,16 +182,16 @@ function buildSupportMap(rows) {
     const rid = extractResourceId(r);
     if (!rid) return;
 
+    // 🔧 FIX: include 'recommender' header explicitly
     const who = pickByHeader(
       r,
-      /submitted\s*by/i,
-      /support(er|ed)?\s*by/i,
+      /^recommender$/i,      // <— new
+      /submitted.*by/i,
+      /support(er|ed)?\b.*by/i,
       /\bname\b/i,
       /reviewer/i,
-      /whats\s*app/i,
       /whatsapp/i
     );
-
 
     const comment = pickByHeader(
       r,
@@ -227,13 +203,7 @@ function buildSupportMap(rows) {
       /notes?/i
     );
 
-    const when = pickByHeader(
-      r,
-      /submitted_at/i,
-      /^timestamp$/i,
-      /time/i,
-      /date/i
-    );
+    const when = pickByHeader(r, /submitted_at/i, /^timestamp$/i, /time/i, /date/i);
 
     (byId[rid] ||= []).push({
       who: String(who || "").trim() || "Anonymous",
@@ -242,7 +212,6 @@ function buildSupportMap(rows) {
     });
   });
 
-  // newest first
   Object.values(byId).forEach(list => {
     list.sort((a,b)=> new Date(b.when || 0) - new Date(a.when || 0));
   });
@@ -270,9 +239,7 @@ function applyFilters() {
   const l = document.getElementById("level").value;
   state.filtered = state.directory.filter(r => {
     const textBlob = `${r.Name||""} ${r.Notes||""} ${r.Modalities||""} ${r.Location||""}`.toLowerCase();
-    return (!t || r.Type===t) &&
-           (!l || r.Level===l) &&
-           (!q || textBlob.includes(q));
+    return (!t || r.Type===t) && (!l || r.Level===l) && (!q || textBlob.includes(q));
   });
   renderCards();
 }
@@ -287,11 +254,10 @@ function isUrl(s){
   if(!s) return false;
   try {
     const u = new URL(s);
-    return u.protocol === "http:" || u.protocol === "https:" || u.protocol === "mailto:" || u.protocol === "tel:";
+    return u.protocol === "http:" || "https:" || "mailto:" || "tel:";
   } catch { return false; }
 }
 
-/* normalize truthy self flags */
 function toBoolSelf(v){
   if (!v) return false;
   const s = String(v).toLowerCase().trim();
@@ -448,22 +414,6 @@ async function main() {
       };
     }).filter(r => r.resource_id && r.Name);
 
-    // Sort A→Z by name
     state.directory.sort((a,b) => a.Name.localeCompare(b.Name, undefined, {sensitivity:'base'}));
 
-    state.byId    = Object.fromEntries(state.directory.map(r => [r.resource_id, r]));
-    state.support = buildSupportMap(supRows);
-
-    initFilters();
-    state.filtered = state.directory.slice();
-    renderCards();
-  } catch (err) {
-    document.getElementById("grid").innerHTML = `<div class="muted">Error loading data: ${err.message}</div>`;
-    console.error(err);
-  }
-}
-
-main();
-</script>
-</body>
-</html>
+    state.by
