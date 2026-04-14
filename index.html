@@ -82,6 +82,21 @@ a{color:var(--green)}
 /* Footer count */
 footer#count{margin-top:12px;color:var(--muted);text-align:left}
 
+/* Email signup */
+.signup{
+  background:#eef5ee;border:2px solid var(--green);border-radius:10px;
+  padding:16px 20px;margin:24px 0 8px;text-align:center;
+}
+.signup h3{margin:0 0 6px;color:var(--green)}
+.signup p{margin:0 0 10px;color:var(--muted);font-size:.9rem}
+.signup-form{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.signup-form input[type="email"]{
+  padding:8px 12px;border:2px solid var(--gold);border-radius:10px;
+  background:#fff;color:#222;min-width:220px;
+}
+.signup-form input[type="email"]::placeholder{color:#777}
+.signup-msg{margin-top:8px;font-size:.9rem;min-height:1.2em}
+
 /* Modal */
 .modalOverlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:9999}
 .modal{background:#fff;border:3px solid var(--green);border-radius:12px;max-width:760px;width:100%;max-height:80vh;display:flex;flex-direction:column}
@@ -115,6 +130,16 @@ footer#count{margin-top:12px;color:var(--muted);text-align:left}
 
   <div id="grid" class="grid" aria-live="polite"></div>
   <footer id="count" class="muted"></footer>
+
+  <div class="signup">
+    <h3>Get notified about new resources</h3>
+    <p>Enter your email and we'll let you know when something new is added to the directory.</p>
+    <form class="signup-form" id="subscribeForm" onsubmit="submitSubscription(event)">
+      <input type="email" id="subEmail" placeholder="Your email address" required />
+      <button type="submit" class="btn">Subscribe</button>
+    </form>
+    <div class="signup-msg" id="subscribeMsg"></div>
+  </div>
 </div>
 
 <!-- Modal -->
@@ -430,7 +455,40 @@ async function main() {
 }
 
 main();
+
+/* ======= EMAIL SUBSCRIPTION ======= */
+/* TODO: Replace these two values after creating your Google Form:
+   1. SUBSCRIBE_FORM_ACTION — the form's action URL (found in the form HTML source)
+   2. SUBSCRIBE_EMAIL_FIELD — the "entry.XXXXXXX" field name for the email question */
+const SUBSCRIBE_FORM_ACTION = "https://docs.google.com/forms/u/0/d/e/1FAIpQLSfjNvpW3vJFmBGetjDVkXI6SQVnh4RepLzJbUlJ_r9fsahHfw/formResponse";
+const SUBSCRIBE_EMAIL_FIELD = "entry.1729488661";
+
+function submitSubscription(evt) {
+  evt.preventDefault();
+  const msgEl = document.getElementById("subscribeMsg");
+  const emailInput = document.getElementById("subEmail");
+  const email = emailInput.value.trim();
+  if (!email) return;
+
+  msgEl.textContent = "Subscribing…";
+  msgEl.style.color = "var(--muted)";
+
+  const formData = new FormData();
+  formData.append(SUBSCRIBE_EMAIL_FIELD, email);
+
+  fetch(SUBSCRIBE_FORM_ACTION, {
+    method: "POST",
+    mode: "no-cors",   // Google Forms doesn't support CORS, but the POST still goes through
+    body: formData
+  }).then(() => {
+    msgEl.textContent = "You're subscribed! We'll notify you when new resources are added.";
+    msgEl.style.color = "var(--green)";
+    emailInput.value = "";
+  }).catch(() => {
+    msgEl.textContent = "Something went wrong. Please try again.";
+    msgEl.style.color = "var(--red)";
+  });
+}
 </script>
 </body>
 </html>
-
