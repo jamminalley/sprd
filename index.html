@@ -457,55 +457,45 @@ async function main() {
 main();
 
 /* ======= EMAIL SUBSCRIPTION ======= */
-/* TODO: Replace these two values after creating your Google Form:
-   1. SUBSCRIBE_FORM_ACTION — the form's action URL (found in the form HTML source)
-   2. SUBSCRIBE_EMAIL_FIELD — the "entry.XXXXXXX" field name for the email question */
-const SUBSCRIBE_FORM_ACTION = "https://docs.google.com/forms/d/e/1FAIpQLSfjNvpW3vJFmBGetjDVkXI6SQVnh4RepLzJbUlJ_r9fsahHfw/formResponse";
-const SUBSCRIBE_EMAIL_FIELD = "entry.1729488661";
+/* TODO: Replace this URL with your deployed Apps Script Web App URL.
+   Deploy > New deployment > Web app > Execute as Me > Anyone can access.
+   Copy the URL and paste it here. */
+const SUBSCRIBE_ENDPOINT = "https://script.google.com/macros/s/AKfycbxglaw0vYdJGrAuyu96mUHXpp-2_j5mcmPZQsxYhmGz223CvjCLYhaixj5ybzbYb1Hj/exec";
 
 function submitSubscription(evt) {
   evt.preventDefault();
   const msgEl = document.getElementById("subscribeMsg");
   const emailInput = document.getElementById("subEmail");
+  const btn = document.querySelector(".signup-form .btn");
   const email = emailInput.value.trim();
   if (!email) return;
 
   msgEl.textContent = "Subscribing…";
   msgEl.style.color = "var(--muted)";
+  btn.disabled = true;
 
-  // Create a hidden iframe to receive the form POST response
-  let iframe = document.getElementById("hiddenSubscribeFrame");
-  if (!iframe) {
-    iframe = document.createElement("iframe");
-    iframe.id = "hiddenSubscribeFrame";
-    iframe.name = "hiddenSubscribeFrame";
-    iframe.style.display = "none";
-    document.body.appendChild(iframe);
-  }
-
-  // Create a temporary hidden form and submit it targeting the iframe
-  const tempForm = document.createElement("form");
-  tempForm.method = "POST";
-  tempForm.action = SUBSCRIBE_FORM_ACTION;
-  tempForm.target = "hiddenSubscribeFrame";
-  tempForm.style.display = "none";
-
-  const input = document.createElement("input");
-  input.type = "hidden";
-  input.name = SUBSCRIBE_EMAIL_FIELD;
-  input.value = email;
-  tempForm.appendChild(input);
-
-  document.body.appendChild(tempForm);
-  tempForm.submit();
-  document.body.removeChild(tempForm);
-
-  // Show success after a short delay (we can't read the iframe response due to cross-origin)
-  setTimeout(() => {
-    msgEl.textContent = "You're subscribed! We'll notify you when new resources are added.";
-    msgEl.style.color = "var(--green)";
-    emailInput.value = "";
-  }, 1500);
+  fetch(SUBSCRIBE_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({ email: email })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === "ok") {
+      msgEl.textContent = "You're subscribed! We'll notify you when new resources are added.";
+      msgEl.style.color = "var(--green)";
+      emailInput.value = "";
+    } else {
+      msgEl.textContent = "Something went wrong: " + (data.message || "please try again.");
+      msgEl.style.color = "var(--red)";
+    }
+  })
+  .catch(err => {
+    console.error("Subscribe error:", err);
+    msgEl.textContent = "Network error — please try again.";
+    msgEl.style.color = "var(--red)";
+  })
+  .finally(() => { btn.disabled = false; });
 }
 </script>
 </body>
