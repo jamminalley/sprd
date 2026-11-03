@@ -679,18 +679,15 @@ function doPost(e) {
 
     var lock = LockService.getDocumentLock();
     lock.waitLock(30000);
+    var outcome;
     try {
-      var nextId = getNextSequentialId_(subs, 'subscriber_id', SUBSCRIBER_PREFIX);
-      subs.appendRow([
-        nextId,          // subscriber_id
-        email,           // email
-        subscribedAt,    // subscribed_at
-        'Active'         // status
-      ]);
+      outcome = _addOrReactivateSubscriber_(subs, email, subscribedAt);
     } finally {
       lock.releaseLock();
     }
+    console.log('doPost subscribe: ' + outcome);
 
+    // Same reply in every case, so the website just says "You're subscribed!"
     return ContentService.createTextOutput(
       JSON.stringify({ status: 'ok', message: 'Subscribed!' })
     ).setMimeType(ContentService.MimeType.JSON);
@@ -701,6 +698,47 @@ function doPost(e) {
       JSON.stringify({ status: 'error', message: err.message })
     ).setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+/** Add a subscriber without creating duplicates. Emails are compared
+ *  ignoring case and spaces. Already Active → nothing to do.
+ *  Unsubscribed → set back to Active. Any other existing status (e.g. one
+ *  set by hand) is left alone. Otherwise a new Active row is added.
+ *  Call while holding the document lock. Returns what happened, for the log. */
+function _addOrReactivateSubscriber_(subs, email, subscribedAt) {
+  var vals = subs.getDataRange().getValues();
+  var hdr = vals.length ? _headerIndexMap_(vals[0]) : {};
+  var emailCol  = hdr['email'];
+  var statusCol = hdr['status'];
+
+  if (emailCol != null) {
+    var target = _normEmail_(email);
+    var unsubRow = -1, otherStatus = '';
+    for (var i = 1; i < vals.length; i++) {
+      if (_normEmail_(vals[i][emailCol]) !== target) continue;
+      var st = statusCol != null ? String(vals[i][statusCol]).trim() : 'Active';
+      if (st === 'Active') return 'already active';
+      if (st === 'Unsubscribed') { if (unsubRow === -1) unsubRow = i; }
+      else if (!otherStatus) otherStatus = st || '(blank)';
+    }
+    if (unsubRow !== -1) {
+      subs.getRange(unsubRow + 1, statusCol + 1).setValue('Active');
+      return 'reactivated (row ' + (unsubRow + 1) + ')';
+    }
+    if (otherStatus) return 'exists with status ' + otherStatus + ', left unchanged';
+  }
+
+  var nextId = getNextSequentialId_(subs, 'subscriber_id', SUBSCRIBER_PREFIX);
+  subs.appendRow([
+    nextId,          // subscriber_id
+    email,           // email
+    subscribedAt,    // subscribed_at
+    'Active'         // status
+  ]);
+  return 'added ' + nextId;
+}
+function _normEmail_(s) {
+  return String(s || '').replace(/\s+/g, '').toLowerCase();
 }
 
 /** GET handler — used for the unsubscribe link in notification emails,
