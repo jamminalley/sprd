@@ -363,7 +363,10 @@ function _appendSubscribeResponseRow_(r) {
 /*  Each listing is announced at most once: subscribers are emailed only when
     status becomes Approved, consent is "Yes", and notified_at is blank. The
     date is then written into notified_at, so re-approving a listing later
-    (e.g. Approved → Pending → Approved) never re-emails everyone.          */
+    (e.g. Approved → Pending → Approved) never re-emails everyone.
+    Any status change (to any value) also re-syncs the Support form's
+    dropdown. The two steps are independent: an error in one never stops
+    the other.                                                              */
 function onStatusChange(e) {
   try {
     var range = e.range;
@@ -372,26 +375,37 @@ function onStatusChange(e) {
     // Only care about edits on the Resources sheet
     if (sheet.getName() !== RESOURCES_SHEET) return;
 
-    // Only care about single-cell edits
-    if (range.getNumRows() !== 1 || range.getNumColumns() !== 1) return;
-
-    // Check if the edited cell is in the "status" column
+    // Only care about edits that touch the "status" column
     var headers = toLowerHeaders_(sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]);
     var statusCol = headers.indexOf('status');
     if (statusCol === -1) return;
 
-    // range.getColumn() is 1-based, statusCol is 0-based
-    if (range.getColumn() - 1 !== statusCol) return;
-
-    // Only fire when the status BECAME "Approved"
-    var newValue = String(range.getValue()).trim();
-    if (newValue !== STATUS_APPROVED) return;
-    if (e.oldValue != null && String(e.oldValue).trim() === STATUS_APPROVED) return;
-
-    _notifyIfNotYetAnnounced_(sheet, range.getRow(), headers);
-
+    // range columns are 1-based, statusCol is 0-based
+    var touchesStatus = range.getColumn() - 1 <= statusCol && statusCol <= range.getLastColumn() - 1;
+    if (!touchesStatus) return;
   } catch (err) {
     console.error('onStatusChange error:', err);
+    return;
+  }
+
+  // 1) Email subscribers — single-cell edits only, when status BECAME "Approved"
+  try {
+    if (range.getNumRows() === 1 && range.getNumColumns() === 1) {
+      var newValue = String(range.getValue()).trim();
+      var wasApproved = e.oldValue != null && String(e.oldValue).trim() === STATUS_APPROVED;
+      if (newValue === STATUS_APPROVED && !wasApproved) {
+        _notifyIfNotYetAnnounced_(sheet, range.getRow(), headers);
+      }
+    }
+  } catch (err) {
+    console.error('onStatusChange: notification failed:', err);
+  }
+
+  // 2) Keep the Support form's dropdown in step with Approved listings
+  try {
+    syncResourceDropdown();
+  } catch (err) {
+    console.error('onStatusChange: dropdown sync failed:', err);
   }
 }
 
