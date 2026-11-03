@@ -2,6 +2,18 @@
 
 Newest entries at the top.
 
+## 2026-11-03 (review)
+- **Reviewed:** ffbe18e..d47840e (49d227f #1, d47840e #5)
+- **Verdict:** Sound. No must-fix items; WhatsApp links will break for some number formats.
+- **Findings:** (Should) 1. whatsAppLink() builds dead wa.me links for local numbers without a country code ("912 345 678") and "00"-prefixed numbers ("00351…"). 2. Directory rows are not filtered by the sheet's "status" column (pre-existing; all 44 rows currently Approved). 3. No repeatable tests; the #1/#5 checks were one-off. (Could) 4. Plain email contacts aren't turned into mailto links. 5. Type/Level values with stray spaces would break the filters (option text is trimmed, sheet value isn't).
+- **Fixed:** none in this review (no must-fix items).
+- **Deferred:**
+  1. WhatsApp links for local / 00-prefixed numbers → #6 (bug, priority: next)
+  2. Directory rows and the status column → #7 (question, priority: next)
+  3. Repeatable test for escaping and contact links → #8 (chore, priority: next)
+  4. Email contacts as mailto links → #9 (chore, priority: later)
+  5. Trim Type/Level so filters match → #10 (bug, priority: later)
+
 ## 2026-11-03: Clickable WhatsApp contacts (issue #5)
 - **What changed:** index.html has two new helpers. `whatsAppLink()`: if a contact mentions WhatsApp and has a phone number (8–15 digits), it builds `https://wa.me/<digits>` from the digits only. `contactLink()`: decides how a contact is shown. Real links follow the unchanged `isUrl()` rules and are checked first; then WhatsApp text becomes "Message on WhatsApp ↗"; anything else stays as plain "Contact:" text. The card and the pop-up both use it, and the pop-up also shows the original contact text (escaped) so the number can be copied.
 - **Affected entries:** Ana ("WhatsApp 1 8159920293", a US number), Kat Molin Mota, and Marcos Bazmandagan (his email stays visible under the link). "Contact Jim R. via DM in WhasApp" has no number, so it stays text. The existing wa.me and chat.whatsapp.com links are unchanged.
