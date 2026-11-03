@@ -4,3 +4,4 @@ exclude:
   - PROJECT.md
   - CLAUDE.md
   - docs/
+  - apps-script/
