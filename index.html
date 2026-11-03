@@ -253,8 +253,8 @@ function initFilters() {
   const levelSel = document.getElementById("level");
   const types = uniqSorted(state.directory.map(r=>r.Type));
   const levels = uniqSorted(state.directory.map(r=>r.Level));
-  types.forEach(t => typeSel.insertAdjacentHTML("beforeend", `<option>${t}</option>`));
-  levels.forEach(l => levelSel.insertAdjacentHTML("beforeend", `<option>${l}</option>`));
+  types.forEach(t => typeSel.insertAdjacentHTML("beforeend", `<option>${escapeHtml(t)}</option>`));
+  levels.forEach(l => levelSel.insertAdjacentHTML("beforeend", `<option>${escapeHtml(l)}</option>`));
   ["q","type","level"].forEach(id => document.getElementById(id).addEventListener("input", applyFilters));
   document.getElementById("clearBtn").addEventListener("click", clearFilters);
 }
@@ -276,11 +276,22 @@ function clearFilters(){
   applyFilters();
 }
 
+/* Make sheet text safe to insert as HTML: it always shows as plain text. */
+function escapeHtml(v){
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/* Only real web, email and phone links count as links (blocks javascript: etc.). */
 function isUrl(s){
   if(!s) return false;
   try {
-    const u = new URL(s);
-    return u.protocol === "http:" || "https:" || "mailto:" || "tel:";
+    const u = new URL(String(s).trim());
+    return ["http:", "https:", "mailto:", "tel:"].includes(u.protocol);
   } catch { return false; }
 }
 
@@ -302,31 +313,31 @@ function renderCards() {
 
     const contact = r["Contact URL"];
     const contactHtml = (contact && isUrl(contact))
-      ? `<div style="margin-top:8px"><a href="${contact}" target="_blank" rel="noopener">Contact / Website ↗</a></div>`
+      ? `<div style="margin-top:8px"><a href="${escapeHtml(String(contact).trim())}" target="_blank" rel="noopener">Contact / Website ↗</a></div>`
       : "";
 
-    const postedByLine = r.PostedBy ? `Originally recommended by: ${r.PostedBy}${r.SelfFlag ? " (self)" : ""}` : "";
+    const postedByLine = r.PostedBy ? `Originally recommended by: ${escapeHtml(r.PostedBy)}${r.SelfFlag ? " (self)" : ""}` : "";
 
     const metaHtml = `
       <div class="meta">
-        ${r.Type ? `<div class="pill">${r.Type}</div>` : ""}
-        ${r.Level ? `<div class="pill">Level: ${r.Level}</div>` : ""}
-        ${r.Location ? `<div class="pill">${r.Location}</div>` : ""}
+        ${r.Type ? `<div class="pill">${escapeHtml(r.Type)}</div>` : ""}
+        ${r.Level ? `<div class="pill">Level: ${escapeHtml(r.Level)}</div>` : ""}
+        ${r.Location ? `<div class="pill">${escapeHtml(r.Location)}</div>` : ""}
         ${r.SelfFlag ? `<div class="pill pill--alert">Self-promo</div>` : ""}
       </div>
     `;
 
     const card = `
       <div class="card">
-        <div class="name">${r.Name||""}</div>
+        <div class="name">${escapeHtml(r.Name)}</div>
         ${metaHtml}
         <div class="row">
           <span class="muted"><strong>${recs}</strong> recommendation${recs===1?"":"s"}</span>
         </div>
-        ${r.Modalities ? `<div class="muted">${r.Modalities}</div>` : ""}
-        <div class="notes">${r.Notes ? r.Notes : ""}</div>
+        ${r.Modalities ? `<div class="muted">${escapeHtml(r.Modalities)}</div>` : ""}
+        <div class="notes">${escapeHtml(r.Notes)}</div>
         ${postedByLine ? `<span class="posted-by">${postedByLine}</span>` : ""}
-        <a class="btn" href="#" onclick="openDetails('${encodeURIComponent(r.resource_id)}');return false;">View details</a>
+        <a class="btn details-btn" href="#" data-id="${escapeHtml(r.resource_id)}">View details</a>
         ${contactHtml}
       </div>`;
     grid.insertAdjacentHTML("beforeend", card);
@@ -335,8 +346,16 @@ function renderCards() {
   count.textContent = `${state.filtered.length} resource${state.filtered.length===1?"":"s"} shown`;
 }
 
-function openDetails(resourceIdEnc){
-  const resourceId = decodeURIComponent(resourceIdEnc);
+/* "View details" buttons: one click listener reads the id from data-id
+   (safer than building onclick="..." code out of sheet values). */
+document.getElementById("grid").addEventListener("click", evt => {
+  const btn = evt.target.closest(".details-btn");
+  if (!btn) return;
+  evt.preventDefault();
+  openDetails(btn.dataset.id);
+});
+
+function openDetails(resourceId){
   const r = state.byId?.[resourceId];
   const list = state.support[resourceId] || [];
 
@@ -349,18 +368,18 @@ function openDetails(resourceIdEnc){
     const contact = r["Contact URL"];
     const contactHtml = contact
       ? (isUrl(contact)
-          ? `<a href="${contact}" target="_blank" rel="noopener">Contact / Website ↗</a>`
-          : `<span class="muted">Contact: ${contact}</span>`)
+          ? `<a href="${escapeHtml(String(contact).trim())}" target="_blank" rel="noopener">Contact / Website ↗</a>`
+          : `<span class="muted">Contact: ${escapeHtml(contact)}</span>`)
       : "";
 
-    const postedByLine = r.PostedBy ? `Originally recommended by: ${r.PostedBy}${r.SelfFlag ? " (self)" : ""}` : "";
+    const postedByLine = r.PostedBy ? `Originally recommended by: ${escapeHtml(r.PostedBy)}${r.SelfFlag ? " (self)" : ""}` : "";
     const recs = Number(r.NumRecs ?? r.num_recommendations ?? r.Recommendations ?? r.num_reviews ?? 1) || 1;
 
     const chipsHtml = `
       <div class="muted" style="margin:4px 0">
-        ${r.Type ? `<span class="pill">${r.Type}</span>&nbsp;` : ""}
-        ${r.Level ? `<span class="pill">Level: ${r.Level}</span>&nbsp;` : ""}
-        ${r.Location ? `<span class="pill">${r.Location}</span>&nbsp;` : ""}
+        ${r.Type ? `<span class="pill">${escapeHtml(r.Type)}</span>&nbsp;` : ""}
+        ${r.Level ? `<span class="pill">Level: ${escapeHtml(r.Level)}</span>&nbsp;` : ""}
+        ${r.Location ? `<span class="pill">${escapeHtml(r.Location)}</span>&nbsp;` : ""}
         ${r.SelfFlag ? `<span class="pill pill--alert">Self-promo</span>` : ""}
       </div>
     `;
@@ -371,8 +390,8 @@ function openDetails(resourceIdEnc){
           <span class="muted"><strong>Recommended by ${recs} member${recs===1?"":"s"}</strong></span>
         </div>
         ${chipsHtml}
-        ${r.Modalities ? `<div class="muted" style="margin:6px 0">${r.Modalities}</div>` : ""}
-        ${r.Notes ? `<div style="margin:6px 0">${r.Notes}</div>` : ""}
+        ${r.Modalities ? `<div class="muted" style="margin:6px 0">${escapeHtml(r.Modalities)}</div>` : ""}
+        ${r.Notes ? `<div style="margin:6px 0">${escapeHtml(r.Notes)}</div>` : ""}
         ${postedByLine ? `<div class="muted" style="margin:6px 0">${postedByLine}</div>` : ""}
         ${contactHtml ? `<div style="margin:6px 0">${contactHtml}</div>` : ""}
         <hr style="border:none;border-top:1px solid #e5e5e5;margin:12px 0">
@@ -389,9 +408,9 @@ function openDetails(resourceIdEnc){
       const dateStr = when ? when.toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'}) : "";
       container.insertAdjacentHTML("beforeend", `
         <div class="review">
-          <div class="by">${rv.who || "Anonymous"}</div>
-          ${dateStr ? `<div class="muted small">${dateStr}</div>` : ""}
-          <div style="margin-top:4px">${(rv.text||"").replace(/\n/g,"<br>")}</div>
+          <div class="by">${escapeHtml(rv.who || "Anonymous")}</div>
+          ${dateStr ? `<div class="muted small">${escapeHtml(dateStr)}</div>` : ""}
+          <div style="margin-top:4px">${escapeHtml(rv.text).replace(/\n/g,"<br>")}</div>
         </div>
       `);
     });
@@ -449,7 +468,7 @@ async function main() {
     state.filtered = state.directory.slice();
     renderCards();
   } catch (err) {
-    document.getElementById("grid").innerHTML = `<div class="muted">Error loading data: ${err.message}</div>`;
+    document.getElementById("grid").innerHTML = `<div class="muted">Error loading data: ${escapeHtml(err.message)}</div>`;
     console.error(err);
   }
 }
