@@ -40,10 +40,9 @@ Nice to have:
   public on GitHub but excluded from the website via _config.yml
 
 ## Out of scope
-- (to be filled in)
+- A public link to the submission form (see decision 005)
 
 ## Open questions
-- Should the page link to the Google Form so members can add recommendations directly?
 - Where does the Apps Script code for the email signup live? (It isn't in this repo.)
 
 ## Current status

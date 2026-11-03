@@ -2,6 +2,11 @@
 
 Newest entries at the top.
 
+## 2026-11-03: Closed #2 (no form link on the site)
+- **What changed:** No code change. Closed #2 as not planned: the directory is for members of the Speaking Portuguese WhatsApp group only, so the form link is shared through the group's instructions doc, not the site (submissions still start as Pending until Jim approves them). Recorded as decision 005. PROJECT.md: removed the answered open question and added the form link to Out of scope.
+- **Issues touched:** #2 (closed, not planned).
+- **What's next:** #6 (WhatsApp local/00 numbers) and #8 (repeatable test) are the remaining priority: next items.
+
 ## 2026-11-03: Closed #7 (Directory status column)
 - **What changed:** No code change. Closed #7 as not needed: listing approval happens on the Google side, and the published Directory tab only ever contains Approved rows (44 rows, all Approved). Setting a row to Pending or Blocked removes it from the site. Added this to PROJECT.md Assumptions and brought "Current status" up to date with today's #1 and #5 work.
 - **Issues touched:** #7 (closed, not planned).
