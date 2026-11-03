@@ -2,6 +2,11 @@
 
 Newest entries at the top.
 
+## 2026-11-03: Closed #7 (Directory status column)
+- **What changed:** No code change. Closed #7 as not needed: listing approval happens on the Google side, and the published Directory tab only ever contains Approved rows (44 rows, all Approved). Setting a row to Pending or Blocked removes it from the site. Added this to PROJECT.md Assumptions and brought "Current status" up to date with today's #1 and #5 work.
+- **Issues touched:** #7 (closed, not planned).
+- **What's next:** #6 (WhatsApp local/00 numbers) and #8 (repeatable test) are the priority: next items, along with #2 (link to the Google Form).
+
 ## 2026-11-03 (review)
 - **Reviewed:** ffbe18e..d47840e (49d227f #1, d47840e #5)
 - **Verdict:** Sound. No must-fix items; WhatsApp links will break for some number formats.

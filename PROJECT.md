@@ -33,6 +33,8 @@ Nice to have:
 
 ## Assumptions
 - Content is edited through the Google Form / Google Sheet, not in the code
+- The published Directory tab only includes Approved rows; that filtering
+  happens in Google (sheet or Apps Script), not in index.html.
 - No build step or server: edit index.html, push, and GitHub Pages updates the site
 - The repo stays public, because free GitHub Pages needs that. Project notes are
   public on GitHub but excluded from the website via _config.yml
@@ -45,6 +47,10 @@ Nice to have:
 - Where does the Apps Script code for the email signup live? (It isn't in this repo.)
 
 ## Current status
-Live and working, including the email signup and notifications. Last code change
-April 2026 (signup switched to an Apps Script web app). Adopted into the
-2nd-brain workflow 2026-11-03.
+Live and working, including the email signup and notifications. Adopted into the
+2nd-brain workflow 2026-11-03. Code changes on 2026-11-03: sheet text is now
+escaped so it always shows as plain text (#1), and WhatsApp contacts written as
+text become working "Message on WhatsApp" links (#5). A second-opinion review
+found no must-fix items; its follow-ups are open as issues #6, #8, #9 and #10
+(#7 closed: not needed). Before that, the last code change was April 2026
+(signup switched to an Apps Script web app).
