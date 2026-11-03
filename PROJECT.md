@@ -43,7 +43,7 @@ Nice to have:
 - A public link to the submission form (see decision 005)
 
 ## Open questions
-- Where does the Apps Script code for the email signup live? (It isn't in this repo.)
+- (none right now)
 
 ## Current status
 Live and working, including the email signup and notifications. Adopted into the
@@ -53,3 +53,6 @@ text become working "Message on WhatsApp" links (#5). A second-opinion review
 found no must-fix items; its follow-ups are open as issues #6, #8, #9 and #10
 (#7 closed: not needed). Before that, the last code change was April 2026
 (signup switched to an Apps Script web app).
+The Apps Script is now in the repo (apps-script/Code.gs, decision 006) with
+fixes for #11–#14. **Not yet live in Google:** Jim applies it by following
+docs/apps-script-update.md.

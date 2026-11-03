@@ -3,7 +3,8 @@
 ## Project notes
 - **What it is:** a single static web page, `index.html` (plain HTML, CSS and JavaScript, no framework, no build step).
 - **Data:** read at page load from a published Google Sheet (two CSV tabs: Directory and Recommendations), parsed with Papa Parse from a CDN. Members add recommendations via a Google Form that feeds the sheet. Content changes happen in the sheet, not the code.
-- **Email signup:** posts to a Google Apps Script web app (`SUBSCRIBE_ENDPOINT` in index.html). The Apps Script code is not in this repo.
+- **Email signup:** posts to a Google Apps Script web app (`SUBSCRIBE_ENDPOINT` in index.html).
+- **Apps Script:** `apps-script/Code.gs` is the source of truth (decision 006). Jim pastes it into Google's editor. Private IDs live in Script Properties, never in the code. Changes to `doPost`/`doGet` need the EXISTING deployment updated to a new version (never a new deployment). New Resources columns only at the far right (the "Aggregated for viewing" QUERY picks columns by letter). The script can't run locally; it was tested with a throwaway fake-Google harness (see issue #8 for a repeatable test).
 - **Run / test:** open `index.html` in a browser (it fetches the live sheet data). Check the email signup on the live site.
 - **Publish:** push to `main`. GitHub Pages serves https://jamminalley.github.io/sprd/ and updates within a minute or two.
 - **Public repo:** the repo must stay public for free GitHub Pages, so everything committed (including these notes) and all issues are public. Never put anything private in them. `_config.yml` keeps the notes files off the website. If you add a new notes folder or file, add it to `exclude:` there.

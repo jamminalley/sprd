@@ -2,6 +2,18 @@
 
 Newest entries at the top.
 
+## 2026-11-03: Apps Script into the repo, plus fixes (#3, #11–#14)
+- **What changed:** Added the Google Apps Script as `apps-script/Code.gs` (excluded from the site). The first commit (6ce9cd4) is the baseline: unchanged except that SPREADSHEET_ID and SUPPORT_FORM_ID are read from Script Properties, with a clear error if missing, so no private IDs are in the repo. Then one commit per issue:
+  - #11 (a5de895): new `notified_at` column (Resources P, found by header). Subscribers are emailed only when status became Approved, consent is Yes and notified_at is blank; the date is written before sending. New menu item "Mark all approved as already announced". Manual notify also fills notified_at.
+  - #12 (49c4ce0): any status change (including multi-cell pastes) runs `syncResourceDropdown()`. Sync and notification are wrapped separately so neither error stops the other.
+  - #13 (0339cf7): `doPost` dedupes signups (email compared ignoring case and spaces). Already Active → no row; Unsubscribed → back to Active; other hand-set statuses are left alone; reply is always "ok".
+  - #14 (1b761a5): removed debugTargets, appendDebugRow, listTabs and copyLatestResourceResponseBound.
+- Wrote `docs/apps-script-update.md` (Jim's step-by-step guide: backup, Script Properties, notified_at header, paste, mark-all, update the EXISTING deployment, tests, rollback). Recorded decision 006. Updated CLAUDE.md and PROJECT.md (the Apps Script open question is answered).
+- **Tested:** the script can't run outside Google, so it was tested with a throwaway fake-Google harness (sheets, form, mail, properties in memory), loading the real Code.gs: 25 checks, all passing. The same checks against the baseline reproduce the bugs (10 notify and 3 signup checks fail). Syntax checked with node. No ID appears anywhere in the repo.
+- **Not changed (out of scope, worth a look later):** the announcement email inserts the listing name/notes into its HTML unescaped, and the unsubscribe confirm page puts `id` into a hidden field unescaped. The Google Form subscribe path (`onSubscribeFormSubmit`) can still add duplicates; only the website's `doPost` was changed. The script's fallback tab name is 'Subscribe form responses' while the tab is 'Subscriber form responses' (harmless: tabs are found by header first).
+- **Issues touched:** #3, #11, #12, #13, #14 (all closed by their commits).
+- **What's next:** Jim follows docs/apps-script-update.md; nothing changes in Google until he does. Then /second-opinion on 6ce9cd4..HEAD.
+
 ## 2026-11-03: Closed #2 (no form link on the site)
 - **What changed:** No code change. Closed #2 as not planned: the directory is for members of the Speaking Portuguese WhatsApp group only, so the form link is shared through the group's instructions doc, not the site (submissions still start as Pending until Jim approves them). Recorded as decision 005. PROJECT.md: removed the answered open question and added the form link to Out of scope.
 - **Issues touched:** #2 (closed, not planned).
