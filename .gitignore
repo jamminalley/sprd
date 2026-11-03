@@ -1,0 +1,11 @@
+# Secrets: never commit these
+.env
+.env.*
+*.p8
+*.p12
+*.pem
+*.key
+secrets/
+
+# Mac clutter
+.DS_Store

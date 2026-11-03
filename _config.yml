@@ -1,0 +1,6 @@
+# GitHub Pages settings.
+# Keep project notes off the public website (they're still visible in the GitHub repo).
+exclude:
+  - PROJECT.md
+  - CLAUDE.md
+  - docs/
