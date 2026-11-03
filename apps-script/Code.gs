@@ -35,6 +35,10 @@ var SUBSCRIBE_FORM_RESPONSES_SHEET = 'Subscribe form responses';
 // ── NEW: Email Notifications ──
 var DIRECTORY_URL                = 'https://jamminalley.github.io/sprd/';
 var NOTIFICATION_SENDER_NAME    = 'Speaking Portuguese Directory';
+// Column on Resources (far right, found by header name) holding the date a
+// listing was announced. Blank = not announced yet. Never move it left of
+// existing columns: "Aggregated for viewing" picks columns by letter.
+var NOTIFIED_AT_HEADER           = 'notified_at';
 
 // The DEPLOYED Web App URL (from Deploy → Manage deployments).
 // Must be the /exec URL so unsubscribe links work for everyone.
@@ -66,6 +70,7 @@ function onOpen() {
     .addItem('Test: copy last Subscribe response', 'copyLatestSubscribeResponse')
     .addSeparator()
     .addItem('Notify subscribers about selected resource', 'notifySelectedResource')
+    .addItem('Mark all approved as already announced', 'markApprovedAsAnnounced')
     .addSeparator()
     .addItem('Diagnose Resource flow', 'diagnoseResourceFlow')
     .addItem('Diagnose Support flow', 'diagnoseSupportFlow')
@@ -354,7 +359,11 @@ function _appendSubscribeResponseRow_(r) {
 }
 
 
-/*** 5) AUTO-NOTIFY SUBSCRIBERS WHEN RESOURCE STATUS → APPROVED ***/
+/*** 5) AUTO-NOTIFY SUBSCRIBERS WHEN A RESOURCE IS FIRST APPROVED ***/
+/*  Each listing is announced at most once: subscribers are emailed only when
+    status becomes Approved, consent is "Yes", and notified_at is blank. The
+    date is then written into notified_at, so re-approving a listing later
+    (e.g. Approved → Pending → Approved) never re-emails everyone.          */
 function onStatusChange(e) {
   try {
     var range = e.range;
@@ -374,27 +383,110 @@ function onStatusChange(e) {
     // range.getColumn() is 1-based, statusCol is 0-based
     if (range.getColumn() - 1 !== statusCol) return;
 
-    // Only fire when the new value is "Approved"
+    // Only fire when the status BECAME "Approved"
     var newValue = String(range.getValue()).trim();
     if (newValue !== STATUS_APPROVED) return;
+    if (e.oldValue != null && String(e.oldValue).trim() === STATUS_APPROVED) return;
 
-    // Grab the full row to build the email
-    var row = sheet.getRange(range.getRow(), 1, 1, sheet.getLastColumn()).getValues()[0];
-    var resource = {
+    _notifyIfNotYetAnnounced_(sheet, range.getRow(), headers);
+
+  } catch (err) {
+    console.error('onStatusChange error:', err);
+  }
+}
+
+/** Email subscribers about one Resources row, unless it was already announced
+ *  or has no consent. Marks notified_at BEFORE sending, so two quick edits
+ *  can't send the same announcement twice.                                  */
+function _notifyIfNotYetAnnounced_(sheet, rowNum, headers) {
+  var notifiedCol = headers.indexOf(NOTIFIED_AT_HEADER);
+  if (notifiedCol === -1) {
+    console.error('Not emailing: no "' + NOTIFIED_AT_HEADER + '" column header on "' + RESOURCES_SHEET +
+      '". Add it in the first empty column on the right (P).');
+    return;
+  }
+
+  var resource;
+  var lock = LockService.getDocumentLock();
+  lock.waitLock(30000);
+  try {
+    var row = sheet.getRange(rowNum, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+    if (CONSENT_YES) {
+      var cConsent = headers.indexOf('consent');
+      var consent = cConsent === -1 ? '' : String(row[cConsent] || '').trim();
+      if (consent !== CONSENT_YES) {
+        console.log('Not emailing row ' + rowNum + ': consent is not "' + CONSENT_YES + '".');
+        return;
+      }
+    }
+    if (String(row[notifiedCol] || '').trim()) {
+      console.log('Not emailing row ' + rowNum + ': already announced (' + NOTIFIED_AT_HEADER + ' is filled in).');
+      return;
+    }
+
+    resource = {
       name:  String(row[headers.indexOf('name_title')] || '').trim(),
       type:  String(row[headers.indexOf('type')] || '').trim(),
       level: String(row[headers.indexOf('level')] || '').trim(),
       notes: String(row[headers.indexOf('notes')] || '').trim()
     };
-
     if (!resource.name) return;  // safety check
 
-    notifySubscribers_(resource);
-    console.log('onStatusChange: notified subscribers about "' + resource.name + '"');
-
-  } catch (err) {
-    console.error('onStatusChange error:', err);
+    sheet.getRange(rowNum, notifiedCol + 1).setValue(_nowStamp_());
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
   }
+
+  notifySubscribers_(resource);
+  console.log('onStatusChange: notified subscribers about "' + resource.name + '"');
+}
+
+/** Menu (run once): fill notified_at for every Approved row that's blank, so
+ *  listings approved before notified_at existed are never re-announced.
+ *  Sends no emails.                                                        */
+function markApprovedAsAnnounced() {
+  var ui = SpreadsheetApp.getUi();
+  var sh = SpreadsheetApp.openById(spreadsheetId_()).getSheetByName(RESOURCES_SHEET);
+  if (!sh) throw new Error("Sheet '" + RESOURCES_SHEET + "' not found.");
+
+  var vals = sh.getDataRange().getValues();
+  var headers = toLowerHeaders_(vals[0]);
+  var cStatus   = headers.indexOf('status');
+  var cNotified = headers.indexOf(NOTIFIED_AT_HEADER);
+  if (cNotified === -1) {
+    ui.alert('First add a column header "' + NOTIFIED_AT_HEADER + '" in the first empty column on the right of "' +
+      RESOURCES_SHEET + '" (column P), then run this again.');
+    return;
+  }
+  if (cStatus === -1) { ui.alert('No "status" column found on "' + RESOURCES_SHEET + '".'); return; }
+
+  var rowsToMark = [];
+  for (var i = 1; i < vals.length; i++) {
+    var status = String(vals[i][cStatus] || '').trim();
+    var notified = String(vals[i][cNotified] || '').trim();
+    if (status === STATUS_APPROVED && !notified) rowsToMark.push(i + 1);
+  }
+  if (!rowsToMark.length) {
+    ui.alert('Nothing to do: every Approved listing already has a ' + NOTIFIED_AT_HEADER + ' date.');
+    return;
+  }
+
+  var confirm = ui.alert(
+    'Mark as already announced?',
+    'Fill in ' + NOTIFIED_AT_HEADER + ' for ' + rowsToMark.length + ' Approved listing(s)? No emails will be sent.',
+    ui.ButtonSet.YES_NO
+  );
+  if (confirm !== ui.Button.YES) return;
+
+  var stamp = _nowStamp_();
+  rowsToMark.forEach(function(r) { sh.getRange(r, cNotified + 1).setValue(stamp); });
+  ui.alert('Done: marked ' + rowsToMark.length + ' listing(s) as already announced.');
+}
+
+function _nowStamp_() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ssXXX");
 }
 
 function notifySubscribers_(resource) {
@@ -528,6 +620,12 @@ function notifySelectedResource() {
   if (confirm !== ui.Button.YES) return;
 
   notifySubscribers_(resource);
+
+  // Record the announcement so a later approval doesn't send it again
+  var cNotified = headers.indexOf(NOTIFIED_AT_HEADER);
+  if (cNotified !== -1 && !String(vals[cNotified] || '').trim()) {
+    sheet.getRange(row, cNotified + 1).setValue(_nowStamp_());
+  }
   ui.alert('Notification sent for "' + resource.name + '".');
 }
 
