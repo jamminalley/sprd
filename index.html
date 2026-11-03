@@ -295,6 +295,31 @@ function isUrl(s){
   } catch { return false; }
 }
 
+/* WhatsApp contacts written as text (e.g. "WhatsApp: +351 916 696 243"):
+   build a wa.me link from the phone number's digits only. The link is made
+   by our code, so it is always https; raw sheet text is never used as a link.
+   Returns "" if there's no WhatsApp mention or no plausible phone number. */
+function whatsAppLink(contact){
+  const s = String(contact || "");
+  if (!/whats\s*app/i.test(s)) return "";
+  const phone = s.match(/\+?\d[\d\s().-]{6,}\d/);   // first phone-like run
+  if (!phone) return "";
+  const digits = phone[0].replace(/\D/g, "");
+  if (digits.length < 8 || digits.length > 15) return "";
+  return `https://wa.me/${digits}`;
+}
+
+/* Decide how a "Contact URL" value is shown. Real links keep the isUrl() rules;
+   WhatsApp text becomes a wa.me link; anything else returns null (plain text). */
+function contactLink(contact){
+  const raw = String(contact || "").trim();
+  if (!raw) return null;
+  if (isUrl(raw)) return { href: raw, label: "Contact / Website ↗", whatsapp: false };
+  const wa = whatsAppLink(raw);
+  if (wa) return { href: wa, label: "Message on WhatsApp ↗", whatsapp: true };
+  return null;
+}
+
 function toBoolSelf(v){
   if (!v) return false;
   const s = String(v).toLowerCase().trim();
@@ -311,9 +336,9 @@ function renderCards() {
       r.NumRecs ?? r.num_recommendations ?? r.Recommendations ?? r.num_reviews ?? 1
     ) || 1;
 
-    const contact = r["Contact URL"];
-    const contactHtml = (contact && isUrl(contact))
-      ? `<div style="margin-top:8px"><a href="${escapeHtml(String(contact).trim())}" target="_blank" rel="noopener">Contact / Website ↗</a></div>`
+    const link = contactLink(r["Contact URL"]);
+    const contactHtml = link
+      ? `<div style="margin-top:8px"><a href="${escapeHtml(link.href)}" target="_blank" rel="noopener">${link.label}</a></div>`
       : "";
 
     const postedByLine = r.PostedBy ? `Originally recommended by: ${escapeHtml(r.PostedBy)}${r.SelfFlag ? " (self)" : ""}` : "";
@@ -365,12 +390,13 @@ function openDetails(resourceId){
   container.innerHTML = "";
 
   if (r){
-    const contact = r["Contact URL"];
-    const contactHtml = contact
-      ? (isUrl(contact)
-          ? `<a href="${escapeHtml(String(contact).trim())}" target="_blank" rel="noopener">Contact / Website ↗</a>`
-          : `<span class="muted">Contact: ${escapeHtml(contact)}</span>`)
-      : "";
+    const contact = String(r["Contact URL"] || "").trim();
+    const link = contactLink(contact);
+    const contactHtml = link
+      ? `<a href="${escapeHtml(link.href)}" target="_blank" rel="noopener">${link.label}</a>` +
+        // keep the number (and anything else in the cell) visible so people can copy it
+        (link.whatsapp ? `<div class="muted" style="margin-top:2px">${escapeHtml(contact)}</div>` : "")
+      : (contact ? `<span class="muted">Contact: ${escapeHtml(contact)}</span>` : "");
 
     const postedByLine = r.PostedBy ? `Originally recommended by: ${escapeHtml(r.PostedBy)}${r.SelfFlag ? " (self)" : ""}` : "";
     const recs = Number(r.NumRecs ?? r.num_recommendations ?? r.Recommendations ?? r.num_reviews ?? 1) || 1;
