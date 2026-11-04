@@ -57,6 +57,14 @@ function getRequiredProperty_(key) {
 function spreadsheetId_() { return getRequiredProperty_('SPREADSHEET_ID'); }
 function supportFormId_() { return getRequiredProperty_('SUPPORT_FORM_ID'); }
 
+/** Make any text safe to put inside HTML (page text or an attribute value),
+    so sheet data and link parameters always show as plain text. */
+function escapeHtml_(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 
 /**************** ON OPEN — ADMIN MENU ******************/
 function onOpen() {
@@ -564,12 +572,12 @@ function notifySubscribers_(resource) {
           '<h2 style="margin:0">New Resource Added</h2>' +
         '</div>' +
         '<div style="padding:20px;border:1px solid #ddd;border-top:none;border-radius:0 0 10px 10px">' +
-          '<h3 style="color:#006600;margin:0 0 8px">' + resource.name + '</h3>' +
+          '<h3 style="color:#006600;margin:0 0 8px">' + escapeHtml_(resource.name) + '</h3>' +
           (metaLine
-            ? '<p style="color:#555;margin:0 0 12px">' + metaLine.replace(/\|/g, '&middot;') + '</p>'
+            ? '<p style="color:#555;margin:0 0 12px">' + escapeHtml_(metaLine).replace(/\|/g, '&middot;') + '</p>'
             : '') +
           (resource.notes
-            ? '<p style="margin:0 0 16px">' + resource.notes + '</p>'
+            ? '<p style="margin:0 0 16px">' + escapeHtml_(resource.notes) + '</p>'
             : '') +
           '<a href="' + DIRECTORY_URL + '" style="display:inline-block;background:#d40000;color:#fff;' +
             'padding:10px 20px;border-radius:10px;text-decoration:none;font-weight:bold">' +
@@ -578,7 +586,7 @@ function notifySubscribers_(resource) {
             'You are receiving this because you subscribed to updates from the ' +
             'Speaking Portuguese Recommendations Directory.<br>' +
             'No longer interested? ' +
-            '<a href="' + unsubUrl + '" style="color:#006600;font-weight:bold;text-decoration:underline">Unsubscribe here</a>.' +
+            '<a href="' + escapeHtml_(unsubUrl) + '" style="color:#006600;font-weight:bold;text-decoration:underline">Unsubscribe here</a>.' +
           '</p>' +
         '</div>' +
       '</div>';
@@ -761,7 +769,7 @@ function doGet(e) {
     console.error('doGet error:', err);
     return HtmlService.createHtmlOutput(
       '<p style="font-family:Arial;padding:40px;text-align:center;color:#c00">' +
-      'Error: ' + err.message + '</p>'
+      'Error: ' + escapeHtml_(err && err.message) + '</p>'
     );
   }
 }
@@ -769,8 +777,8 @@ function doGet(e) {
 function _showUnsubscribeConfirmPage_(params) {
   var id = String(params.id || '').trim();
   var email = String(params.email || '').trim();
-  var safeEmail = email.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  var safeId = escapeHtml_(id);
+  var safeEmail = escapeHtml_(email);
 
   var html =
     '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Confirm Unsubscribe</title></head>' +
@@ -783,7 +791,7 @@ function _showUnsubscribeConfirmPage_(params) {
           'from Speaking Portuguese Directory updates?</p>' +
         '<form method="POST" action="' + WEB_APP_URL + '" target="_top" style="margin:0">' +
           '<input type="hidden" name="action" value="unsubscribe">' +
-          '<input type="hidden" name="id" value="' + id + '">' +
+          '<input type="hidden" name="id" value="' + safeId + '">' +
           '<input type="hidden" name="email" value="' + safeEmail + '">' +
           '<button type="submit" style="background:#d40000;color:#fff;border:0;' +
             'padding:12px 24px;border-radius:10px;font-weight:bold;font-size:16px;' +
