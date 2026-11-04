@@ -54,5 +54,6 @@ found no must-fix items; its follow-ups are open as issues #6, #8, #9 and #10
 (#7 closed: not needed). Before that, the last code change was April 2026
 (signup switched to an Apps Script web app).
 The Apps Script is now in the repo (apps-script/Code.gs, decision 006) with
-fixes for #11–#14. **Not yet live in Google:** Jim applies it by following
-docs/apps-script-update.md.
+fixes for #11–#14, and is live in Google since 2026-11-03 (signup dedupe and
+automatic Support-dropdown refresh both tested; first-time announcement is
+checked at the next real approval).

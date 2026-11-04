@@ -2,6 +2,14 @@
 
 Newest entries at the top.
 
+## 2026-11-03: Apps Script update is live in Google
+- **What changed:** Jim followed docs/apps-script-update.md with step-by-step help. Backup made; Script Properties set; `notified_at` added in Resources P1; new Code.gs pasted; "Mark all approved as already announced" filled P for 44 listings (no emails); the EXISTING deployment updated to a new version (web app URL unchanged, doGet answers "subscribe endpoint is live").
+- **Hiccup, fixed:** at first only one property was saved, `SPREADSHEET_ID`, holding the Support *form* ID, so the mark-all step failed with "Document … is missing". Fixed by setting `SPREADSHEET_ID` to the admin sheet's ID and adding `SUPPORT_FORM_ID`. (The menu also needed the Sheet closed and reopened to show the new item.)
+- **Tests:** A (duplicate signup → one Active row) passed. B (Approved → Pending → Approved removes and restores the listing in the Support dropdown, no email) passed. C (a genuinely new approval sends one email and stamps P) can only be checked at the next real approval.
+- **Found along the way:** the Support form dropdown was out of date (many website listings missing) because it had last been synced long before; consent was "Yes" on every row. One manual "Sync 'Support' form dropdown now" brought it to all 44. From now on every status change keeps it in step.
+- **Issues touched:** none (#3, #11–#14 were closed by their commits).
+- **What's next:** watch the next real approval (test C) and glance at Executions for errors. Run /second-opinion on 6ce9cd4..HEAD. Open issues: #4, #6, #8, #9, #10.
+
 ## 2026-11-03: Apps Script into the repo, plus fixes (#3, #11–#14)
 - **What changed:** Added the Google Apps Script as `apps-script/Code.gs` (excluded from the site). The first commit (6ce9cd4) is the baseline: unchanged except that SPREADSHEET_ID and SUPPORT_FORM_ID are read from Script Properties, with a clear error if missing, so no private IDs are in the repo. Then one commit per issue:
   - #11 (a5de895): new `notified_at` column (Resources P, found by header). Subscribers are emailed only when status became Approved, consent is Yes and notified_at is blank; the date is written before sending. New menu item "Mark all approved as already announced". Manual notify also fills notified_at.
