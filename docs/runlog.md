@@ -2,6 +2,14 @@
 
 Newest entries at the top.
 
+## 2026-11-03 (review)
+- **Reviewed:** d47840e..53b3cd6 (6ce9cd4 #3, a5de895 #11, 49c4ce0 #12, 0339cf7 #13, 1b761a5 #14, plus docs)
+- **Verdict:** Fixes work as designed and no private IDs leaked; one small HTML-injection hole on the unsubscribe page to close.
+- **Findings:** (Must) 1. Unsubscribe page, announcement email and error page put unescaped data into HTML. (Should) 2. Old duplicate subscriber rows get emails twice and unsubscribe only stops one. 3. Failed announcements are stamped notified_at and nobody is alerted (no quota check). 4. Multi-row approvals never announce. 5. Google Form subscribe path still adds duplicates. 6. No repeatable Apps Script test (harness was thrown away). (Could) 7. Manual notify ignores status/consent and reports success even on failure. 8. Website signup accepts text with no "@". 9. Unsubscribe compares emails differently from signup.
+- **Fixed:** 1 (commit 99d3d39). New `escapeHtml_()` used for the unsubscribe confirm page (id and email), the announcement email's HTML (name, notes, type/level line, unsubscribe link) and doGet's error page; plain-text bodies and the subject unchanged. Checked with the fake-Google harness: 4 new escaping checks (a link with id `"><b>x</b>` and a listing named `<b>Test</b>` both appear literally) plus the earlier 25, all 29 passing; the 3 hostile-input checks fail on the previous version.
+- **Deferred:** 2 → #15, 3 → #16, 4 → #17, 5 → #18, 6 → #19, 7 → #20, 8 → #21 (9 folded into #15)
+- **Not live yet:** Jim needs to paste the new Code.gs into Google and update the EXISTING deployment to a new version (docs/apps-script-update.md steps 4 and 6).
+
 ## 2026-11-03: Apps Script update is live in Google
 - **What changed:** Jim followed docs/apps-script-update.md with step-by-step help. Backup made; Script Properties set; `notified_at` added in Resources P1; new Code.gs pasted; "Mark all approved as already announced" filled P for 44 listings (no emails); the EXISTING deployment updated to a new version (web app URL unchanged, doGet answers "subscribe endpoint is live").
 - **Hiccup, fixed:** at first only one property was saved, `SPREADSHEET_ID`, holding the Support *form* ID, so the mark-all step failed with "Document … is missing". Fixed by setting `SPREADSHEET_ID` to the admin sheet's ID and adding `SUPPORT_FORM_ID`. (The menu also needed the Sheet closed and reopened to show the new item.)

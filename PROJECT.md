@@ -56,4 +56,6 @@ found no must-fix items; its follow-ups are open as issues #6, #8, #9 and #10
 The Apps Script is now in the repo (apps-script/Code.gs, decision 006) with
 fixes for #11–#14, and is live in Google since 2026-11-03 (signup dedupe and
 automatic Support-dropdown refresh both tested; first-time announcement is
-checked at the next real approval).
+checked at the next real approval). A second review led to an escaping fix
+(99d3d39) that still needs pasting into Google and the existing deployment
+updating; its other findings are issues #15–#21.
